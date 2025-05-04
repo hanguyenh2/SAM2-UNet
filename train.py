@@ -25,6 +25,7 @@ parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=4, type=int)
 parser.add_argument("--size", default=1024, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
+parser.add_argument("--save_interval", default=10, type=int)
 args = parser.parse_args()
 
 
