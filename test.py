@@ -17,11 +17,12 @@ parser.add_argument("--test_gt_path", type=str, required=True,
                     help="path to the mask files for testing")
 parser.add_argument("--save_path", type=str, required=True,
                     help="path to save the predicted masks")
+parser.add_argument("--size", default=1024, type=int)
 args = parser.parse_args()
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-test_loader = TestDataset(args.test_image_path, args.test_gt_path, 352)
+test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
 model = SAM2UNet().to(device)
 model.load_state_dict(torch.load(args.checkpoint), strict=True)
 model.eval()
