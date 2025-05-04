@@ -52,9 +52,10 @@ def main(args):
                       weight_decay=args.weight_decay)
     scheduler = CosineAnnealingLR(optim, args.epoch, eta_min=1.0e-7)
     os.makedirs(args.save_path, exist_ok=True)
+
+    epoch_loss = 2.0
+    best_loss = 1.2
     for epoch in range(args.epoch):
-        epoch_loss = 2.0
-        best_loss = 1.2
         for i, batch in enumerate(dataloader):
             x = batch['image']
             target = batch['label']
