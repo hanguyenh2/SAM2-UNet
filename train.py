@@ -56,6 +56,7 @@ def main(args):
 
     epoch_loss = 2.0
     best_loss = 1.2
+    save_interval = args.save_interval
     for epoch in range(args.epoch):
         for i, batch in enumerate(dataloader):
             x = batch['image']
@@ -76,7 +77,7 @@ def main(args):
                                                                  best_loss))
 
         scheduler.step()
-        if (epoch + 1) % 50 == 0 or (epoch + 1) == args.epoch:
+        if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
                                            f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
