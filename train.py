@@ -22,7 +22,7 @@ parser.add_argument('--save_path', type=str, required=True,
 parser.add_argument("--epoch", type=int, default=10000,
                     help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=16, type=int)
+parser.add_argument("--batch_size", default=4, type=int)
 parser.add_argument("--size", default=1024, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 args = parser.parse_args()
@@ -54,7 +54,7 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
     for epoch in range(args.epoch):
         epoch_loss = 2.0
-        best_loss = 1.5
+        best_loss = 1.2
         for i, batch in enumerate(dataloader):
             x = batch['image']
             target = batch['label']
@@ -68,9 +68,9 @@ def main(args):
             loss = loss0 + loss1 + loss2
             loss.backward()
             optim.step()
+            epoch_loss = loss.item()
             if i % 50 == 0:
-                epoch_loss = loss.item()
-                print("epoch:{}-{}: loss:{} best_loss:{}".format(epoch + 1, i + 1, epoch_loss,
+                print("epoch-{}-{}: loss:{} best_loss:{}".format(epoch + 1, i + 1, epoch_loss,
                                                                  best_loss))
 
         scheduler.step()
