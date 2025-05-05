@@ -1,5 +1,4 @@
 import os
-import random
 
 import numpy as np
 import torchvision.transforms.functional as F
@@ -28,32 +27,6 @@ class Resize(object):
                 'label': F.resize(label, self.size, interpolation=InterpolationMode.BICUBIC)}
 
 
-class RandomHorizontalFlip(object):
-    def __init__(self, p=0.5):
-        self.p = p
-
-    def __call__(self, data):
-        image, label = data['image'], data['label']
-
-        if random.random() < self.p:
-            return {'image': F.hflip(image), 'label': F.hflip(label)}
-
-        return {'image': image, 'label': label}
-
-
-class RandomVerticalFlip(object):
-    def __init__(self, p=0.5):
-        self.p = p
-
-    def __call__(self, data):
-        image, label = data['image'], data['label']
-
-        if random.random() < self.p:
-            return {'image': F.vflip(image), 'label': F.vflip(label)}
-
-        return {'image': image, 'label': label}
-
-
 class Normalize(object):
     def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
@@ -75,8 +48,6 @@ class FullDataset(Dataset):
         if mode == 'train':
             self.transform = transforms.Compose([
                 Resize((size, size)),
-                RandomHorizontalFlip(p=0.5),
-                RandomVerticalFlip(p=0.5),
                 ToTensor(),
                 Normalize()
             ])
