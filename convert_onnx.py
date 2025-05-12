@@ -33,7 +33,7 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path, verbose=False):
             dummy_input,
             onnx_path,
             export_params=True,  # Store trained parameter weights inside the ONNX file
-            opset_version=10,  # Or a suitable opset version (check compatibility)
+            opset_version=14,  # Or a suitable opset version (check compatibility)
             do_constant_folding=True,  # Optimize the graph by folding constants
             input_names=input_names,  # Name for the input tensor in the ONNX graph
             output_names=output_names,  # Name for the output tensor in the ONNX graph

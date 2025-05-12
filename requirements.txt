@@ -6,3 +6,6 @@ hydra-core==1.3.2
 tqdm==4.65.2
 imageio
 pysodmetrics
+opencv-python
+onnx
+onnxruntime
