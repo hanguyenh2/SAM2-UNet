@@ -10,6 +10,58 @@ import torch.nn.functional as F
 from SAM2UNet import SAM2UNet
 from dataset import TestDataset
 
+import onnxruntime as ort
+import numpy as np
+
+def use_onnx_model(onnx_path, input_data):
+    """
+    Loads an ONNX model and performs inference.
+
+    Args:
+        onnx_path (str): Path to the ONNX model file.
+        input_data (numpy.ndarray):  The input data for the model, as a NumPy array.
+            The shape and data type must match the model's expected input.
+
+    Returns:
+        numpy.ndarray: The model's output.
+    """
+    # 1. Create an ONNX Runtime session
+    ort_session = ort.InferenceSession(onnx_path)
+
+    # 2. Get the name of the input layer
+    input_name = ort_session.get_inputs()[0].name
+
+    # 3. Run the model
+    outputs = ort_session.run(None, {input_name: input_data})
+
+    # 4.  Get the output (assuming there's one output)
+    output = outputs[0]  # outputs is a list;  take the first element.
+    return output
+
+def main():
+    """Example usage."""
+    # 1. Path to your ONNX model (the one you converted)
+    onnx_model_path = "resnet18.onnx"  # Replace with the actual path to your ONNX file
+
+    # 2.  Create some dummy input data  (replace with *your* actual data!)
+    #    This is *CRUCIAL*:  The shape and type MUST match what the model expects.
+    #    For example, if your model expects a batch of 1 image, 3 channels, 224x224:
+    input_shape = (1, 3, 224, 224)
+    input_data = np.random.randn(*input_shape).astype(np.float32)
+
+    # 3. Use the model for inference
+    output_data = use_onnx_model(onnx_model_path, input_data)
+
+    # 4. Process the output (this depends on what your model does)
+    print("Model output shape:", output_data.shape)
+    print("Model output data:", output_data)
+    #  Example:  If it's a classification model, you might take the argmax:
+    #  predicted_class = np.argmax(output_data, axis=1)
+    #  print("Predicted class:", predicted_class)
+
+if __name__ == "__main__":
+    main()
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, required=True,
                     help="path to the checkpoint of sam2-unet")
@@ -24,10 +76,10 @@ args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
-model = SAM2UNet().to(device)
-model.load_state_dict(torch.load(args.checkpoint), strict=True)
-model.eval()
-model.cuda()
+# 1. Create an ONNX Runtime session
+ort_session = ort.InferenceSession(args.checkpoint)
+# 2. Get the name of the input layer
+input_name = ort_session.get_inputs()[0].name
 os.makedirs(args.save_path, exist_ok=True)
 test_time = []
 for i in range(test_loader.size):
@@ -36,7 +88,9 @@ for i in range(test_loader.size):
         gt = np.asarray(gt, np.float32)
         image = image.to(device)
         time_start = time.time()
-        res, _, _ = model(image)
+        # 3. Run the model
+        res, _, _ = ort_session.run(None, {input_name: image})
+
         process_time = time.time() - time_start
         test_time.append(process_time)
         # fix: duplicate sigmoid
