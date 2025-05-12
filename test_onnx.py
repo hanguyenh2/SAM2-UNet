@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 
+import cv2
 import imageio
 import numpy as np
 import onnxruntime as ort
@@ -33,23 +34,19 @@ test_time = []
 for i in range(test_loader.size):
     with torch.no_grad():
         image, gt, name = test_loader.load_data()
-        gt = np.asarray(gt, np.float32)
-        image = image.to(device)
-        print("=========")
-        print(image.shape)
-        image_ = torch.randn(1, 3, args.size, args.size).cuda()
-        print(image.shape)
+        image = image.cpu().numpy()
         time_start = time.time()
         # 3. Run the model
-        res, _, _ = ort_session.run(None, {input_name: image_})
+        res, _, _ = ort_session.run(None, {input_name: image})
 
         process_time = time.time() - time_start
         test_time.append(process_time)
-        # fix: duplicate sigmoid
-        # res = torch.sigmoid(res)
-        res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
-        res = res.sigmoid().data.cpu()
-        res = res.numpy().squeeze()
+
+        gt = np.asarray(gt, np.float32)
+        gt_shape = gt.shape
+        res_resized = cv2.resize(res, (gt_shape[-1], gt_shape[-2]), interpolation=cv2.INTER_LINEAR)
+        res_sigmoid = 1 / (1 + np.exp(-res_resized))
+        res_squeezed = np.squeeze(res_sigmoid)
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)
         res = (res * 255).astype(np.uint8)
         # If you want to binarize the prediction results, please uncomment the following three lines. 
