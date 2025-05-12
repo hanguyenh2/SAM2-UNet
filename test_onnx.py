@@ -35,9 +35,13 @@ for i in range(test_loader.size):
         image, gt, name = test_loader.load_data()
         gt = np.asarray(gt, np.float32)
         image = image.to(device)
+        print("=========")
+        print(image.shape)
+        image_ = torch.randn(1, 3, args.size, args.size).cuda()
+        print(image.shape)
         time_start = time.time()
         # 3. Run the model
-        res, _, _ = ort_session.run(None, {input_name: image})
+        res, _, _ = ort_session.run(None, {input_name: image_})
 
         process_time = time.time() - time_start
         test_time.append(process_time)
