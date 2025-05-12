@@ -5,7 +5,7 @@ import time
 import cv2
 import imageio
 import numpy as np
-import onnxruntime as ort
+import onnxruntime
 import torch
 
 from dataset import TestDataset
@@ -25,9 +25,9 @@ args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
 # 1. Create an ONNX Runtime session
-ort_session = ort.InferenceSession(args.checkpoint)
+model = onnxruntime.InferenceSession(args.checkpoint)
 # 2. Get the name of the input layer
-input_name = ort_session.get_inputs()[0].name
+input_name = model.get_inputs()[0].name
 os.makedirs(args.save_path, exist_ok=True)
 test_time = []
 for i in range(test_loader.size):
@@ -36,20 +36,18 @@ for i in range(test_loader.size):
         image = image.cpu().numpy()
         time_start = time.time()
         # 3. Run the model
-        res, _, _ = ort_session.run(None, {input_name: image})
+        res, _, _ = model.run(None, {input_name: image})
 
         process_time = time.time() - time_start
         test_time.append(process_time)
 
         gt = np.asarray(gt, np.float32)
-        gt_shape = gt.shape
-        print(res.shape)
+        gt_h, gt_w = gt.shape[:2]
         res_sigmoid = 1 / (1 + np.exp(-res))
         res = np.squeeze(res_sigmoid)
-        res = cv2.resize(res, (gt_shape[-1], gt_shape[-2]), interpolation=cv2.INTER_LINEAR)
+        res = cv2.resize(res, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)
         res = (res * 255).astype(np.uint8)
-        print(res.shape)
         print("Saving " + name)
         print("process_time:", process_time)
         imageio.imsave(os.path.join(args.save_path, name[:-4] + ".png"), res)
