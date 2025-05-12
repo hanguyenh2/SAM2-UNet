@@ -7,7 +7,6 @@ import imageio
 import numpy as np
 import onnxruntime as ort
 import torch
-import torch.nn.functional as F
 
 from dataset import TestDataset
 
@@ -44,16 +43,13 @@ for i in range(test_loader.size):
 
         gt = np.asarray(gt, np.float32)
         gt_shape = gt.shape
-        res_resized = cv2.resize(res, (gt_shape[-1], gt_shape[-2]), interpolation=cv2.INTER_LINEAR)
-        res_sigmoid = 1 / (1 + np.exp(-res_resized))
-        res_squeezed = np.squeeze(res_sigmoid)
+        print(res.shape)
+        res_sigmoid = 1 / (1 + np.exp(-res))
+        res = np.squeeze(res_sigmoid)
+        res = cv2.resize(res, (gt_shape[-1], gt_shape[-2]), interpolation=cv2.INTER_LINEAR)
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)
         res = (res * 255).astype(np.uint8)
-        # If you want to binarize the prediction results, please uncomment the following three lines. 
-        # Note that this action will affect the calculation of evaluation metrics.
-        # lambda = 0.5
-        # res[res >= int(255 * lambda)] = 255
-        # res[res < int(255 * lambda)] = 0
+        print(res.shape)
         print("Saving " + name)
         print("process_time:", process_time)
         imageio.imsave(os.path.join(args.save_path, name[:-4] + ".png"), res)
