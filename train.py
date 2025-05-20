@@ -55,7 +55,7 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
 
     epoch_loss = 2.0
-    best_loss = 0.8
+    best_loss = 0.4
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         for i, batch in enumerate(dataloader):
