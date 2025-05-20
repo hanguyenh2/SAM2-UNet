@@ -55,7 +55,7 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
 
     epoch_loss = 2.0
-    best_loss = 1.2
+    best_loss = 0.8
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         for i, batch in enumerate(dataloader):
@@ -85,7 +85,8 @@ def main(args):
 
         if epoch_loss < best_loss:
             best_loss = epoch_loss
-            save_model_path = os.path.join(args.save_path, f"SAM2-UNet-best.pth")
+            save_model_path = os.path.join(args.save_path,
+                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print(f'[Saving Snapshot best: {epoch + 1}-{epoch_loss:.3f}]', save_model_path)
 
