@@ -105,10 +105,10 @@ print("F_{beta}:    ", format(curr_results['adpFm'], '.3f'))
 print("E_{phi}:     ", format(curr_results['meanEm'], '.3f'))
 print("MAE:         ", format(curr_results['MAE'], '.3f'))
 
-print(f"{curr_results['meandice']}"
-      f"\t{curr_results['meaniou']}"
-      f"\t{curr_results['Smeasure']}"
-      f"\t{curr_results['wFmeasure']}"
-      f"\t{curr_results['adpFm']}"
-      f"\t{curr_results['meanEm']}"
-      f"\t{curr_results['MAE']}")
+print(f"{curr_results['meandice']:.3f}"
+      f"\t{curr_results['meaniou']:.3f}"
+      f"\t{curr_results['Smeasure']:.3f}"
+      f"\t{curr_results['wFmeasure']:.3f}"
+      f"\t{curr_results['adpFm']:.3f}"
+      f"\t{curr_results['meanEm']:.3f}"
+      f"\t{curr_results['MAE']:.3f}")
