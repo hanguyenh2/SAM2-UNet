@@ -38,6 +38,7 @@ class Dataset(BaseDataset):
 
         # Convert image to Tensor
         image = image.transpose(2, 0, 1)
+        mask = mask.astype(np.float32)
         mask = np.expand_dims(mask, axis=0)
 
         return image, mask, name
