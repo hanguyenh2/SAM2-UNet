@@ -1,6 +1,7 @@
 import os
 
 import cv2
+import numpy as np
 from torch.utils.data import Dataset as BaseDataset, DataLoader
 
 from augmentations import get_training_augmentation, get_testing_augmentation
@@ -37,6 +38,7 @@ class Dataset(BaseDataset):
 
         # Convert image to Tensor
         image = image.transpose(2, 0, 1)
+        mask = np.expand_dims(mask, axis=0)
 
         return image, mask, name
 
