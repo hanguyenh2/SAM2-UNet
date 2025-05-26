@@ -51,9 +51,10 @@ def get_training_augmentation(size: int):
             A.Downscale(scale_range=(0.6, 0.8)),
         ], p=0.2),
 
-        # 8. Normalize, comment to visualize
+        # 8. Normalize and convert to tensor, comment to visualize
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0,
                     normalization="standard", p=1.0),
+        A.ToTensorV2(),
     ]
     return A.Compose(train_transform)
 
@@ -65,5 +66,6 @@ def get_testing_augmentation(size: int):
         A.PadIfNeeded(min_height=size, min_width=size),
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0,
                     normalization="standard", p=1.0),
+        A.ToTensorV2(),
     ]
     return A.Compose(test_transform)
