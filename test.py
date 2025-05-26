@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from SAM2UNet import SAM2UNet
-from dataset import TestDataset
+from dataset import Dataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, required=True,
@@ -23,16 +23,16 @@ parser.add_argument("--size", default=1536, type=int)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
+test_loader = Dataset(args.test_image_path, args.test_gt_path, args.size, training=False)
 model = SAM2UNet().to(device)
 model.load_state_dict(torch.load(args.checkpoint), strict=True)
 model.eval()
 model.cuda()
 os.makedirs(args.save_path, exist_ok=True)
 test_time = []
-for i in range(test_loader.size):
+for test_data in test_loader:
     with torch.no_grad():
-        image, gt, name = test_loader.load_data()
+        image, gt, name = test_data
         gt = np.asarray(gt, np.float32)
         image = image.to(device)
         time_start = time.time()
