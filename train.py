@@ -17,6 +17,10 @@ parser.add_argument("--train_image_path", type=str, required=True,
                     help="path to the image that used to train the model")
 parser.add_argument("--train_mask_path", type=str, required=True,
                     help="path to the mask file for training")
+parser.add_argument("--test_image_path", type=str, required=True,
+                    help="path to the image that used to evaluate the model")
+parser.add_argument("--test_mask_path", type=str, required=True,
+                    help="path to the mask file for evaluating")
 parser.add_argument('--save_path', type=str, required=True,
                     help="path to store the checkpoint")
 parser.add_argument("--epoch", type=int, default=100,
@@ -41,23 +45,36 @@ def structure_loss(pred, mask):
 
 
 def main(args):
+    # 1. Load train data
     dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+    # 2. Load test data
+    test_dataset = FullDataset(args.test_image_path, args.train_mask_path, args.size, mode='test')
+    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,
+                                 num_workers=8)
+    # 3. Load model
+    # Set device
     device = torch.device("cuda")
-    model = SAM2UNet()
-    model.to(device)
+    # Load model to device
     model = SAM2UNet().to(device)
+
+    # 4. Load checkpoint if provided
     if len(args.checkpoint) > 0:
         model.load_state_dict(torch.load(args.checkpoint), strict=True)
+    # 5. Set optimizer
     optim = opt.AdamW([{"params": model.parameters(), "initia_lr": args.lr}], lr=args.lr,
                       weight_decay=args.weight_decay)
+    # 6. Set scheduler
     scheduler = CosineAnnealingLR(optim, args.epoch, eta_min=1.0e-7)
-    os.makedirs(args.save_path, exist_ok=True)
 
+    # 7. Train
+    os.makedirs(args.save_path, exist_ok=True)
     epoch_loss = 2.0
     best_loss = 0.4
     save_interval = args.save_interval
     for epoch in range(args.epoch):
+        # 7.1. Train phase
+        print("Training:")
         for i, batch in enumerate(dataloader):
             x = batch['image']
             target = batch['label']
@@ -71,18 +88,35 @@ def main(args):
             loss = loss0 + loss1 + loss2
             loss.backward()
             optim.step()
-            epoch_loss = loss.item()
             if i % 50 == 0:
-                print("epoch-{}-{}: loss:{} best_loss:{}".format(epoch + 1, i + 1, epoch_loss,
-                                                                 best_loss))
-
+                print("epoch-{}-{}: loss:{}".format(epoch + 1, i + 1, loss.item()))
         scheduler.step()
+
+        # 7.2. Evaluation phase
+        print("Evaluating ", end="")
+        for i, batch in enumerate(test_dataloader):
+            x = batch['image']
+            target = batch['label']
+            x = x.to(device)
+            target = target.to(device)
+            pred0, pred1, pred2 = model(x)
+            loss0 = structure_loss(pred0, target)
+            loss1 = structure_loss(pred1, target)
+            loss2 = structure_loss(pred2, target)
+            loss = loss0 + loss1 + loss2
+            epoch_loss = loss.item()
+            if i % 10 == 0:
+                print(".", end="")
+        print("\nepoch-{}: loss:{} best_loss:{}\n".format(epoch + 1, epoch_loss, best_loss))
+
+        # 7.3. Save checkpoint
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
                                            f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print('[Saving Snapshot:]', save_model_path)
 
+        # 7.3. Save best checkpoint
         if epoch_loss < best_loss:
             best_loss = epoch_loss
             save_model_path = os.path.join(args.save_path,
