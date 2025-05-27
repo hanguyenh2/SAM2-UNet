@@ -56,8 +56,7 @@ def main(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     # 2. Load test data
     test_dataset = FullDataset(args.test_image_path, args.train_mask_path, args.size, mode='test')
-    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,
-                                 num_workers=8)
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
     # 3. Load model
     # Set device
     device = torch.device("cuda")
@@ -75,12 +74,12 @@ def main(args):
 
     # 7. Train
     os.makedirs(args.save_path, exist_ok=True)
-    epoch_loss = 2.0
     best_loss = 0.4
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         # 7.1. Train phase
         print("Training:")
+        model.train() # Set model to training mode
         for i, batch in enumerate(dataloader):
             x = batch['image']
             target = batch['label']
@@ -94,41 +93,51 @@ def main(args):
             loss = loss0 + loss1 + loss2
             loss.backward()
             optim.step()
-            if i % 50 == 0:
+            if i % 10 == 0:
                 print("epoch-{}-{}: loss:{}".format(epoch + 1, i + 1, loss.item()))
         scheduler.step()
 
         # 7.2. Evaluation phase
         print("Evaluating ", end="")
-        for i, batch in enumerate(test_dataloader):
-            x = batch['image']
-            target = batch['label']
-            x = x.to(device)
-            target = target.to(device)
-            pred0, pred1, pred2 = model(x)
-            loss0 = structure_loss(pred0, target)
-            loss1 = structure_loss(pred1, target)
-            loss2 = structure_loss(pred2, target)
-            loss = loss0 + loss1 + loss2
-            epoch_loss = loss.item()
-            if i % 10 == 0:
-                print(".", end="")
-        print("\nepoch-{}: loss:{} best_loss:{}\n".format(epoch + 1, epoch_loss, best_loss))
+        model.eval() # Set model to evaluation mode
+        epoch_loss_sum = 0.0 # Initialize sum for average test loss
+        num_test_batches = 0 # Counter for test batches
+        with torch.no_grad(): # Disable gradient calculations for efficiency and safety
+            for i, batch in enumerate(test_dataloader):
+                x = batch['image']
+                target = batch['label']
+                x = x.to(device)
+                target = target.to(device)
+
+                pred0, pred1, pred2 = model(x)
+                loss0 = structure_loss(pred0, target)
+                loss1 = structure_loss(pred1, target)
+                loss2 = structure_loss(pred2, target)
+                loss = loss0 + loss1 + loss2
+
+                epoch_loss_sum += loss.item() # Accumulate loss
+                num_test_batches += 1
+
+                if i % 10 == 0:
+                    print(".", end="")
+
+        avg_epoch_loss = epoch_loss_sum / num_test_batches if num_test_batches > 0 else 0.0
+        print("\nepoch-{}: avg_test_loss:{} best_loss:{}\n".format(epoch + 1, avg_epoch_loss, best_loss))
 
         # 7.3. Save checkpoint
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}.pth")
+                                           f"SAM2-UNet-{epoch + 1}-{avg_epoch_loss:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print('[Saving Snapshot:]', save_model_path)
 
         # 7.3. Save best checkpoint
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        if avg_epoch_loss < best_loss:
+            best_loss = avg_epoch_loss
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}.pth")
+                                           f"SAM2-UNet-{epoch + 1}-{avg_epoch_loss:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
-            print(f'[Saving Snapshot best: {epoch + 1}-{epoch_loss:.3f}]', save_model_path)
+            print(f'[Saving Snapshot best: {epoch + 1}-{avg_epoch_loss:.3f}]', save_model_path)
 
 
 # def seed_torch(seed=1024):
