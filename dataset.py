@@ -32,7 +32,7 @@ class Dataset(BaseDataset):
         mask = cv2.imread(self.masks[i], 0)
         # Convert to float32 and expand_dims for pytorch
         mask = mask.astype(np.float32)
-        mask = np.expand_dims(mask, axis=2)
+        # mask = np.expand_dims(mask, axis=2)
 
         # Augmentation
         if self.augmentation:
