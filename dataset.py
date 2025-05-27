@@ -30,13 +30,15 @@ class Dataset(BaseDataset):
 
         # Read the mask in grayscale mode
         mask = cv2.imread(self.masks[i], 0)
+        # Convert to float32 and expand_dims for pytorch
+        mask = mask.astype(np.float32)
+        mask = np.expand_dims(mask, axis=2)
 
         # Augmentation
         if self.augmentation:
             sample = self.augmentation(image=image, mask=mask)
             image, mask = sample["image"], sample["mask"]
 
-        # Convert image to Tensor
         return image, mask, name
 
     def __len__(self):

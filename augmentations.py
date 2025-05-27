@@ -54,7 +54,7 @@ def get_training_augmentation(size: int):
         # 8. Normalize and convert to tensor, comment to visualize
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0,
                     normalization="standard", p=1.0),
-        A.ToTensorV2(),
+        A.ToTensorV2(transpose_mask=True),
     ]
     return A.Compose(train_transform)
 
