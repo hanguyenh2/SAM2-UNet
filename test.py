@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from SAM2UNet import SAM2UNet
-from dataset import Dataset
+from dataset import TestDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, required=True,
@@ -23,16 +23,16 @@ parser.add_argument("--size", default=1536, type=int)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-test_loader = Dataset(args.test_image_path, args.test_gt_path, args.size, training=False)
+test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
 model = SAM2UNet().to(device)
 model.load_state_dict(torch.load(args.checkpoint), strict=True)
 model.eval()
 model.cuda()
 os.makedirs(args.save_path, exist_ok=True)
 test_time = []
-for test_data in test_loader:
+for i in range(test_loader.size):
     with torch.no_grad():
-        image, gt, name = test_data
+        image, gt, name = test_loader.load_data()
         gt = np.asarray(gt, np.float32)
         image = image.to(device)
         time_start = time.time()
@@ -46,7 +46,7 @@ for test_data in test_loader:
         res = res.numpy().squeeze()
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)
         res = (res * 255).astype(np.uint8)
-        # If you want to binarize the prediction results, please uncomment the following three lines. 
+        # If you want to binarize the prediction results, please uncomment the following three lines.
         # Note that this action will affect the calculation of evaluation metrics.
         # lambda = 0.5
         # res[res >= int(255 * lambda)] = 255

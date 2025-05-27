@@ -9,4 +9,3 @@ pysodmetrics
 opencv-python
 onnx
 onnxruntime
-albumentations

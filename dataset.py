@@ -1,70 +1,119 @@
 import os
 
-import cv2
 import numpy as np
-from torch.utils.data import Dataset as BaseDataset, DataLoader
+import torchvision.transforms.functional as F
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
-from augmentations import get_training_augmentation, get_testing_augmentation
-from utils import visualize_mask
+
+class ToTensor(object):
+
+    def __call__(self, data):
+        image, label = data['image'], data['label']
+        return {'image': F.to_tensor(image), 'label': F.to_tensor(label)}
 
 
-class Dataset(BaseDataset):
-    def __init__(self, images_dir: str, masks_dir: str, size: int, training: bool = True):
-        self.images = [images_dir + f for f in os.listdir(images_dir) if
+class Resize(object):
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, data):
+        image, label = data['image'], data['label']
+
+        return {'image': F.resize(image, self.size),
+                'label': F.resize(label, self.size, interpolation=InterpolationMode.BICUBIC)}
+
+
+class Normalize(object):
+    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, sample):
+        image, label = sample['image'], sample['label']
+        image = F.normalize(image, self.mean, self.std)
+        return {'image': image, 'label': label}
+
+
+class FullDataset(Dataset):
+    def __init__(self, image_root, gt_root, size, mode):
+        self.images = [image_root + f for f in os.listdir(image_root) if
                        f.endswith('.jpg') or f.endswith('.png')]
-        self.masks = [masks_dir + f for f in os.listdir(masks_dir) if f.endswith('.png')]
+        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
         self.images = sorted(self.images)
-        self.masks = sorted(self.masks)
-        if training:
-            self.augmentation = get_training_augmentation(size)
+        self.gts = sorted(self.gts)
+        if mode == 'train':
+            self.transform = transforms.Compose([
+                Resize((size, size)),
+                ToTensor(),
+                Normalize()
+            ])
         else:
-            self.augmentation = get_testing_augmentation(size)
+            self.transform = transforms.Compose([
+                Resize((size, size)),
+                ToTensor(),
+                Normalize()
+            ])
 
-    def __getitem__(self, i):
-        # Get image's name
-        name = self.images[i].split('/')[-1]
-
-        # Read the image
-        image = cv2.imread(self.images[i])
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
-
-        # Read the mask in grayscale mode
-        mask = cv2.imread(self.masks[i], 0)
-        # Convert to float32 and expand_dims for pytorch
-        mask = mask.astype(np.float32)
-        # mask = np.expand_dims(mask, axis=2)
-
-        # Augmentation
-        if self.augmentation:
-            sample = self.augmentation(image=image, mask=mask)
-            image, mask = sample["image"], sample["mask"]
-
-        return image, mask, name
+    def __getitem__(self, idx):
+        image = self.rgb_loader(self.images[idx])
+        label = self.binary_loader(self.gts[idx])
+        data = {'image': image, 'label': label}
+        data = self.transform(data)
+        return data
 
     def __len__(self):
         return len(self.images)
 
+    def rgb_loader(self, path):
+        with open(path, 'rb') as f:
+            img = Image.open(f)
+            return img.convert('RGB')
 
-if __name__ == "__main__":
-    images_dir = "data/images/"
-    masks_dir = "data/masks/"
-    size = 1152
-    train_dataset = Dataset(
-        images_dir,
-        masks_dir,
-        size=size,
-        training=True,
-    )
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0)
-    for i in range(20):
-        train_features, train_labels, name = next(iter(train_loader))
-        print(name)
-        img = train_features[0].squeeze().numpy().transpose(1, 2, 0)
-        mask = train_labels[0].squeeze().numpy()
-        colored_mask = visualize_mask(
-            img,
-            mask,
-            5,
-        )
-        cv2.imwrite(f"{i}.png", img)
-        cv2.imwrite(f"{i}_label.png", colored_mask)
+    def binary_loader(self, path):
+        with open(path, 'rb') as f:
+            img = Image.open(f)
+            return img.convert('L')
+
+
+class TestDataset:
+    def __init__(self, image_root, gt_root, size):
+        self.images = [image_root + f for f in os.listdir(image_root) if
+                       f.endswith('.jpg') or f.endswith('.png')]
+        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
+        self.images = sorted(self.images)
+        self.gts = sorted(self.gts)
+        self.transform = transforms.Compose([
+            transforms.Resize((size, size)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406],
+                                 [0.229, 0.224, 0.225])
+        ])
+        self.gt_transform = transforms.ToTensor()
+        self.size = len(self.images)
+        self.index = 0
+
+    def load_data(self):
+        image = self.rgb_loader(self.images[self.index])
+        image = self.transform(image).unsqueeze(0)
+
+        gt = self.binary_loader(self.gts[self.index])
+        gt = np.array(gt)
+
+        name = self.images[self.index].split('/')[-1]
+
+        self.index += 1
+        return image, gt, name
+
+    def rgb_loader(self, path):
+        with open(path, 'rb') as f:
+            img = Image.open(f)
+            return img.convert('RGB')
+
+    def binary_loader(self, path):
+        with open(path, 'rb') as f:
+            img = Image.open(f)
+            return img.convert('L')

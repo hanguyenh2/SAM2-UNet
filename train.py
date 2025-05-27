@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
 from SAM2UNet import SAM2UNet
-from dataset import Dataset
+from dataset import FullDataset
 
 parser = argparse.ArgumentParser("SAM2-UNet")
 parser.add_argument("--checkpoint", type=str, required=True,
@@ -41,7 +41,7 @@ def structure_loss(pred, mask):
 
 
 def main(args):
-    dataset = Dataset(args.train_image_path, args.train_mask_path, args.size, training=True)
+    dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     device = torch.device("cuda")
     model = SAM2UNet()
@@ -59,7 +59,8 @@ def main(args):
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         for i, batch in enumerate(dataloader):
-            x, target, name = batch
+            x = batch['image']
+            target = batch['label']
             x = x.to(device)
             target = target.to(device)
             optim.zero_grad()
