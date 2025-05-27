@@ -12,22 +12,28 @@ from dataset import FullDataset
 
 parser = argparse.ArgumentParser("SAM2-UNet")
 parser.add_argument("--checkpoint", type=str, required=True,
+                    default="",
                     help="path to the checkpoint of sam2-unet")
 parser.add_argument("--train_image_path", type=str, required=True,
+                    default="../data_crop/data_train/images/",
                     help="path to the image that used to train the model")
 parser.add_argument("--train_mask_path", type=str, required=True,
+                    default="../data_crop/data_train/masks/",
                     help="path to the mask file for training")
 parser.add_argument("--test_image_path", type=str, required=True,
+                    default="../data_crop/data_test/images/",
                     help="path to the image that used to evaluate the model")
 parser.add_argument("--test_mask_path", type=str, required=True,
+                    default="../data_crop/data_test/masks/",
                     help="path to the mask file for evaluating")
 parser.add_argument('--save_path', type=str, required=True,
+                    default="../checkpoints_1152/",
                     help="path to store the checkpoint")
-parser.add_argument("--epoch", type=int, default=100,
+parser.add_argument("--epoch", type=int, default=150,
                     help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=2, type=int)
-parser.add_argument("--size", default=1536, type=int)
+parser.add_argument("--batch_size", default=3, type=int)
+parser.add_argument("--size", default=1152, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
 args = parser.parse_args()
