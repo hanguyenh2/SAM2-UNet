@@ -167,13 +167,14 @@ def main(args):
                 print("gt", gt.shape)
                 gt = gt.data.cpu()
                 gt = gt.numpy().squeeze()
-                res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
                 print("after")
-                print("res", np.mean(res))
+                print("res", np.min(res))
+                print("res", np.max(res))
                 print("res", res.shape)
-                print("gt", np.mean(gt))
+                print("gt", np.min(gt))
+                print("gt", np.max(gt))
                 print("gt", gt.shape)
 
                 # Evaluate
