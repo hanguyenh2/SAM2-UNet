@@ -227,6 +227,9 @@ class TestDataset:
         self.size = len(self.images)
         self.index = 0
 
+    def reset_index(self):
+        self.index = 0
+
     def load_data(self):
         image = self.rgb_loader(self.images[self.index])
         image = self.transform(image).unsqueeze(0)

@@ -160,19 +160,15 @@ def main(args):
                 res = (res - res.min()) / (res.max() - res.min() + 1e-8)
                 res = (res * 255).astype(np.uint8)
                 gt = np.asarray(gt, np.float32)
-                print("============")
-                print("gt", gt.shape)
-                print("gt", gt.min())
-                print("gt", gt.max())
-                print("res", res.shape)
-                print("res", res.min())
-                print("res", res.max())
                 # Evaluate
                 FMv2.step(pred=res, gt=gt)
                 # Print for status
                 if i % 10 == 0:
                     print(".", end="", flush=True)
 
+        # Reset test_loader index
+        test_loader.reset_index()
+        # Get mIoU
         fmv2 = FMv2.get_results()
         mean_iou = fmv2["iou"]["dynamic"].mean()
         print(
