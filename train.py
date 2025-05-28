@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import py_sod_metrics
 import torch
 import torch.nn.functional as F
 import torch.optim as opt
@@ -50,6 +51,12 @@ def structure_loss(pred, mask):
     return (wbce + wiou).mean()
 
 
+# Define eval metrics
+sample_gray = dict(with_adaptive=True, with_dynamic=True)
+sample_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=True)
+overall_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=False)
+
+
 def main(args):
     # 1. Load train data
     dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
@@ -74,12 +81,13 @@ def main(args):
 
     # 7. Train
     os.makedirs(args.save_path, exist_ok=True)
-    best_loss = 0.4
+    epoch_loss = 2.0
+    best_mean_iou = 0.8
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         # 7.1. Train phase
         print("Training:")
-        model.train() # Set model to training mode
+        model.train()  # Set model to training mode
         for i, batch in enumerate(dataloader):
             x = batch['image']
             target = batch['label']
@@ -91,53 +99,87 @@ def main(args):
             loss1 = structure_loss(pred1, target)
             loss2 = structure_loss(pred2, target)
             loss = loss0 + loss1 + loss2
+            epoch_loss = loss.item()
             loss.backward()
             optim.step()
             if i % 10 == 0:
-                print("epoch-{}-{}: loss:{}".format(epoch + 1, i + 1, loss.item()))
+                print("epoch-{}-{}: loss:{}".format(epoch + 1, i + 1, epoch_loss))
         scheduler.step()
 
         # 7.2. Evaluation phase
         print("Evaluating ", end="")
-        model.eval() # Set model to evaluation mode
-        epoch_loss_sum = 0.0 # Initialize sum for average test loss
-        num_test_batches = 0 # Counter for test batches
-        with torch.no_grad(): # Disable gradient calculations for efficiency and safety
+        # init FMv2
+        FMv2 = py_sod_metrics.FmeasureV2(
+            metric_handlers={
+                "fm": py_sod_metrics.FmeasureHandler(**sample_gray, beta=0.3),
+                "f1": py_sod_metrics.FmeasureHandler(**sample_gray, beta=1),
+                "pre": py_sod_metrics.PrecisionHandler(**sample_gray),
+                "rec": py_sod_metrics.RecallHandler(**sample_gray),
+                "fpr": py_sod_metrics.FPRHandler(**sample_gray),
+                "iou": py_sod_metrics.IOUHandler(**sample_gray),
+                "dice": py_sod_metrics.DICEHandler(**sample_gray),
+                "spec": py_sod_metrics.SpecificityHandler(**sample_gray),
+                "ber": py_sod_metrics.BERHandler(**sample_gray),
+                "oa": py_sod_metrics.OverallAccuracyHandler(**sample_gray),
+                "kappa": py_sod_metrics.KappaHandler(**sample_gray),
+                "sample_bifm": py_sod_metrics.FmeasureHandler(**sample_bin, beta=0.3),
+                "sample_bif1": py_sod_metrics.FmeasureHandler(**sample_bin, beta=1),
+                "sample_bipre": py_sod_metrics.PrecisionHandler(**sample_bin),
+                "sample_birec": py_sod_metrics.RecallHandler(**sample_bin),
+                "sample_bifpr": py_sod_metrics.FPRHandler(**sample_bin),
+                "sample_biiou": py_sod_metrics.IOUHandler(**sample_bin),
+                "sample_bidice": py_sod_metrics.DICEHandler(**sample_bin),
+                "sample_bispec": py_sod_metrics.SpecificityHandler(**sample_bin),
+                "sample_biber": py_sod_metrics.BERHandler(**sample_bin),
+                "sample_bioa": py_sod_metrics.OverallAccuracyHandler(**sample_bin),
+                "sample_bikappa": py_sod_metrics.KappaHandler(**sample_bin),
+                "overall_bifm": py_sod_metrics.FmeasureHandler(**overall_bin, beta=0.3),
+                "overall_bif1": py_sod_metrics.FmeasureHandler(**overall_bin, beta=1),
+                "overall_bipre": py_sod_metrics.PrecisionHandler(**overall_bin),
+                "overall_birec": py_sod_metrics.RecallHandler(**overall_bin),
+                "overall_bifpr": py_sod_metrics.FPRHandler(**overall_bin),
+                "overall_biiou": py_sod_metrics.IOUHandler(**overall_bin),
+                "overall_bidice": py_sod_metrics.DICEHandler(**overall_bin),
+                "overall_bispec": py_sod_metrics.SpecificityHandler(**overall_bin),
+                "overall_biber": py_sod_metrics.BERHandler(**overall_bin),
+                "overall_bioa": py_sod_metrics.OverallAccuracyHandler(**overall_bin),
+                "overall_bikappa": py_sod_metrics.KappaHandler(**overall_bin),
+            }
+        )
+        # Set model to evaluation mode
+        model.eval()
+        # Disable gradient calculations for efficiency and safety
+        with torch.no_grad():
             for i, batch in enumerate(test_dataloader):
                 x = batch['image']
                 target = batch['label']
                 x = x.to(device)
                 target = target.to(device)
 
-                pred0, pred1, pred2 = model(x)
-                loss0 = structure_loss(pred0, target)
-                loss1 = structure_loss(pred1, target)
-                loss2 = structure_loss(pred2, target)
-                loss = loss0 + loss1 + loss2
-
-                epoch_loss_sum += loss.item() # Accumulate loss
-                num_test_batches += 1
+                pred, _, _ = model(x)
+                FMv2.step(pred=pred, gt=target)
 
                 if i % 10 == 0:
-                    print(".", end="")
+                    print(".", end="", flush=True)
 
-        avg_epoch_loss = epoch_loss_sum / num_test_batches if num_test_batches > 0 else 0.0
-        print("\nepoch-{}: avg_test_loss:{} best_loss:{}\n".format(epoch + 1, avg_epoch_loss, best_loss))
+        fmv2 = FMv2.get_results()
+        mean_iou = fmv2["iou"]["dynamic"].mean()
+        print(
+            "\nepoch-{}: loss: {} mIoU: {} best_mIoU: {}\n".format(epoch + 1, epoch_loss, mean_iou,
+                                                                   best_mean_iou))
 
         # 7.3. Save checkpoint
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{avg_epoch_loss:.3f}.pth")
+                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
-            print('[Saving Snapshot:]', save_model_path)
-
-        # 7.3. Save best checkpoint
-        if avg_epoch_loss < best_loss:
-            best_loss = avg_epoch_loss
+            print('Saving Snapshot:', save_model_path)
+        elif mean_iou > best_mean_iou:
+            best_mean_iou = mean_iou
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{avg_epoch_loss:.3f}.pth")
+                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
-            print(f'[Saving Snapshot best: {epoch + 1}-{avg_epoch_loss:.3f}]', save_model_path)
+            print(f'Saving Snapshot best:', save_model_path)
 
 
 # def seed_torch(seed=1024):
