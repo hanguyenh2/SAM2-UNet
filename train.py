@@ -178,13 +178,13 @@ def main(args):
         # 7.3. Save checkpoint
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}-{mean_iou:.3f}.pth")
+                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print('Saving Snapshot:', save_model_path)
         elif mean_iou > best_mean_iou:
             best_mean_iou = mean_iou
             save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet-{epoch + 1}-{epoch_loss:.3f}-{mean_iou:.3f}.pth")
+                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print(f'Saving Snapshot best:', save_model_path)
 

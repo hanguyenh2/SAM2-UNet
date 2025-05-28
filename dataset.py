@@ -175,7 +175,7 @@ class FullDataset(Dataset):
         if mode == 'train':
             self.transform = transforms.Compose([
                 Resize((size, size)),
-                # RandomRotate(),
+                RandomRotate(),
                 ToTensor(),
                 # ToGray(),
                 # ColorAugmentations(),
