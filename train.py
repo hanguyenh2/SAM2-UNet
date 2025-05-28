@@ -160,22 +160,10 @@ def main(args):
                 res, _, _ = model(x)
 
                 # Conversion before evaluation
-                print("before")
-                print("res", type(res))
-                print("res", res.shape)
-                print("gt", type(gt))
-                print("gt", gt.shape)
                 gt = gt.data.cpu()
                 gt = gt.numpy().squeeze()
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
-                print("after")
-                print("res", np.min(res))
-                print("res", np.max(res))
-                print("res", res.shape)
-                print("gt", np.min(gt))
-                print("gt", np.max(gt))
-                print("gt", gt.shape)
 
                 # Evaluate
                 FMv2.step(pred=res, gt=gt)
