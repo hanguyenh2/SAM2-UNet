@@ -63,7 +63,7 @@ def main(args):
     dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     # 2. Load test data
-    test_loader = TestDataset(args.test_image_path, args.train_mask_path, args.size, mode='test')
+    test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
     # 3. Load model
     # Set device
     device = torch.device("cuda")
