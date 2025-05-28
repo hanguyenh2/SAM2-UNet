@@ -151,14 +151,23 @@ def main(args):
         # Disable gradient calculations for efficiency and safety
         with torch.no_grad():
             for i, batch in enumerate(test_dataloader):
+                # Get image and label
                 x = batch['image']
                 target = batch['label']
+                # Run model
                 x = x.to(device)
-                target = target.to(device)
+                res, _, _ = model(x)
 
-                pred, _, _ = model(x)
-                FMv2.step(pred=pred.cpu(), gt=target.cpu())
+                # Conversion before evaluation
+                res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
+                res = res.sigmoid().data.cpu()
+                res = res.numpy().squeeze()
+                gt = target.data.cpu()
+                gt = gt.numpy().squeeze()
 
+                # Evaluate
+                FMv2.step(pred=res, gt=gt)
+                # Print for status
                 if i % 10 == 0:
                     print(".", end="", flush=True)
 
