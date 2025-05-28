@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import numpy as np
 import py_sod_metrics
 import torch
 import torch.nn.functional as F
@@ -159,12 +160,21 @@ def main(args):
                 res, _, _ = model(x)
 
                 # Conversion before evaluation
+                print("before")
+                print("res", type(res))
+                print("res", res.shape)
+                print("gt", type(gt))
+                print("gt", gt.shape)
                 gt = target.data.cpu()
                 gt = gt.numpy().squeeze()
                 res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
-
+                print("after")
+                print("res", np.mean(res))
+                print("res", res.shape)
+                print("gt", np.mean(gt))
+                print("gt", gt.shape)
 
                 # Evaluate
                 FMv2.step(pred=res, gt=gt)
