@@ -159,11 +159,12 @@ def main(args):
                 res, _, _ = model(x)
 
                 # Conversion before evaluation
+                gt = target.data.cpu()
+                gt = gt.numpy().squeeze()
                 res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
-                gt = target.data.cpu()
-                gt = gt.numpy().squeeze()
+
 
                 # Evaluate
                 FMv2.step(pred=res, gt=gt)
