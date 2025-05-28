@@ -154,7 +154,7 @@ def main(args):
             for i, batch in enumerate(test_dataloader):
                 # Get image and label
                 x = batch['image']
-                target = batch['label']
+                gt = batch['label']
                 # Run model
                 x = x.to(device)
                 res, _, _ = model(x)
@@ -165,7 +165,7 @@ def main(args):
                 print("res", res.shape)
                 print("gt", type(gt))
                 print("gt", gt.shape)
-                gt = target.data.cpu()
+                gt = gt.data.cpu()
                 gt = gt.numpy().squeeze()
                 res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
