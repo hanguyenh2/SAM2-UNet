@@ -157,7 +157,7 @@ def main(args):
                 target = target.to(device)
 
                 pred, _, _ = model(x)
-                FMv2.step(pred=pred, gt=target)
+                FMv2.step(pred=pred.cpu(), gt=target.cpu())
 
                 if i % 10 == 0:
                     print(".", end="", flush=True)
