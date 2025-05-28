@@ -41,7 +41,7 @@ for i in range(test_loader.size):
         test_time.append(process_time)
         # fix: duplicate sigmoid
         # res = torch.sigmoid(res)
-        res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
+        res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)
         res = res.sigmoid().data.cpu()
         res = res.numpy().squeeze()
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)

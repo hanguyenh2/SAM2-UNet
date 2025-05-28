@@ -107,7 +107,7 @@ def main(args):
         scheduler.step()
 
         # 7.2. Evaluation phase
-        print("Evaluating ", end="")
+        print("Evaluating", end="")
         # init FMv2
         FMv2 = py_sod_metrics.FmeasureV2(
             metric_handlers={
@@ -154,7 +154,7 @@ def main(args):
                 image, gt, name = test_loader.load_data()
                 image = image.to(device)
                 res, _, _ = model(image)
-                res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
+                res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
                 res = (res - res.min()) / (res.max() - res.min() + 1e-8)
