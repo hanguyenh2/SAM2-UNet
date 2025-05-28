@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
 from SAM2UNet import SAM2UNet
-from dataset import FullDataset
+from dataset import FullDataset, TestDataset
 
 parser = argparse.ArgumentParser("SAM2-UNet")
 parser.add_argument("--checkpoint", type=str,
@@ -63,8 +63,7 @@ def main(args):
     dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     # 2. Load test data
-    test_dataset = FullDataset(args.test_image_path, args.train_mask_path, args.size, mode='test')
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
+    test_loader = TestDataset(args.test_image_path, args.train_mask_path, args.size, mode='test')
     # 3. Load model
     # Set device
     device = torch.device("cuda")
@@ -150,21 +149,24 @@ def main(args):
         # Set model to evaluation mode
         model.eval()
         # Disable gradient calculations for efficiency and safety
-        with torch.no_grad():
-            for i, batch in enumerate(test_dataloader):
-                # Get image and label
-                x = batch['image']
-                gt = batch['label']
-                # Run model
-                x = x.to(device)
-                res, _, _ = model(x)
-
-                # Conversion before evaluation
-                gt = gt.data.cpu()
-                gt = gt.numpy().squeeze()
+        for i in range(test_loader.size):
+            with torch.no_grad():
+                image, gt, name = test_loader.load_data()
+                image = image.to(device)
+                res, _, _ = model(image)
+                res = F.upsample(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
-
+                res = (res - res.min()) / (res.max() - res.min() + 1e-8)
+                res = (res * 255).astype(np.uint8)
+                gt = np.asarray(gt, np.float32)
+                print("============")
+                print("gt", gt.shape)
+                print("gt", gt.min())
+                print("gt", gt.max())
+                print("res", res.shape)
+                print("res", res.min())
+                print("res", res.max())
                 # Evaluate
                 FMv2.step(pred=res, gt=gt)
                 # Print for status
