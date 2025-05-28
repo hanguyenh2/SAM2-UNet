@@ -177,9 +177,9 @@ class FullDataset(Dataset):
                 Resize((size, size)),
                 RandomRotate(),
                 ToTensor(),
-                # ToGray(),
-                # ColorAugmentations(),
-                # GaussianBlur(),
+                ToGray(),
+                ColorAugmentations(),
+                GaussianBlur(),
                 Normalize()
             ])
         else:
