@@ -82,7 +82,7 @@ def main(args):
     # 7. Train
     os.makedirs(args.save_path, exist_ok=True)
     epoch_loss = 2.0
-    best_mean_iou = 0.8
+    best_mean_iou = 0.7
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         # 7.1. Train phase
