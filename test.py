@@ -14,12 +14,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, required=True,
                     help="path to the checkpoint of sam2-unet")
 parser.add_argument("--test_image_path", type=str, required=True,
+                    default="../data_crop/data_test/images/",
                     help="path to the image files for testing")
 parser.add_argument("--test_gt_path", type=str, required=True,
+                    default="../data_crop/data_test/masks/",
                     help="path to the mask files for testing")
 parser.add_argument("--save_path", type=str, required=True,
                     help="path to save the predicted masks")
-parser.add_argument("--size", default=1536, type=int)
+parser.add_argument("--size", default=1152, type=int)
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
