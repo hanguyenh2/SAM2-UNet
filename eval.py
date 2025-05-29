@@ -1,7 +1,8 @@
+import argparse
 import os
+
 import cv2
 import py_sod_metrics
-import argparse
 
 FM = py_sod_metrics.Fmeasure()
 WFM = py_sod_metrics.WeightedFmeasure()
@@ -11,9 +12,9 @@ MAE = py_sod_metrics.MAE()
 MSIOU = py_sod_metrics.MSIoU()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_name", type=str, required=True, 
+parser.add_argument("--dataset_name", type=str, required=True,
                     help="path to the prediction results")
-parser.add_argument("--pred_path", type=str, required=True, 
+parser.add_argument("--pred_path", type=str, required=True,
                     help="path to the prediction results")
 parser.add_argument("--gt_path", type=str,
                     default="../data_crop/data_test/masks/",
@@ -77,7 +78,6 @@ for i, mask_name in enumerate(mask_name_list):
     EM.step(pred=pred, gt=mask)
     MAE.step(pred=pred, gt=mask)
     FMv2.step(pred=pred, gt=mask)
-    
 
 fm = FM.get_results()["fm"]
 wfm = WFM.get_results()["wfm"]
@@ -86,13 +86,12 @@ em = EM.get_results()["em"]
 mae = MAE.get_results()["mae"]
 fmv2 = FMv2.get_results()
 
-
 curr_results = {
     "meandice": fmv2["dice"]["dynamic"].mean(),
     "meaniou": fmv2["iou"]["dynamic"].mean(),
     'Smeasure': sm,
     "wFmeasure": wfm,  # For Marine Animal Segmentation
-    "adpFm": fm["adp"], # For Camouflaged Object Detection
+    "adpFm": fm["adp"],  # For Camouflaged Object Detection
     "meanEm": em["curve"].mean(),
     "MAE": mae,
 }
@@ -105,11 +104,3 @@ print("F^{w}_{beta}:", format(curr_results['wFmeasure'], '.3f'))
 print("F_{beta}:    ", format(curr_results['adpFm'], '.3f'))
 print("E_{phi}:     ", format(curr_results['meanEm'], '.3f'))
 print("MAE:         ", format(curr_results['MAE'], '.3f'))
-
-print(f"{curr_results['meandice']:.3f}")
-print(f"{curr_results['meaniou']:.3f}")
-print(f"{curr_results['Smeasure']:.3f}")
-print(f"{curr_results['wFmeasure']:.3f}")
-print(f"{curr_results['adpFm']:.3f}")
-print(f"{curr_results['meanEm']:.3f}")
-print(f"{curr_results['MAE']:.3f}")
