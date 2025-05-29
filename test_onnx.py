@@ -24,34 +24,57 @@ parser.add_argument("--test_gt_path", type=str,
 parser.add_argument("--size", default=1152, type=int)
 args = parser.parse_args()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Determine the device for ONNX Runtime
+# Check if CUDA is available in PyTorch, then map to ONNX Runtime providers
+if torch.cuda.is_available():
+    # Attempt to use CUDAExecutionProvider, fallback to CPU if CUDA is not fully set up for ONNX Runtime
+    providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+    print("CUDA is available. Attempting to use GPU for ONNX Runtime.")
+else:
+    providers = ['CPUExecutionProvider']
+    print("CUDA is not available. Using CPU for ONNX Runtime.")
+
 test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
-# 1. Create an ONNX Runtime session
-model = onnxruntime.InferenceSession(args.checkpoint)
+
+# 1. Create an ONNX Runtime session, specifying the providers
+# The 'providers' argument tells ONNX Runtime which hardware backend to use.
+model = onnxruntime.InferenceSession(args.checkpoint, providers=providers)
+
 # 2. Get the name of the input layer
 input_name = model.get_inputs()[0].name
 os.makedirs(args.save_path, exist_ok=True)
 test_time = []
+
+print(f"Starting inference with ONNX Runtime using providers: {model.get_providers()}")
+
 for i in range(test_loader.size):
-    with torch.no_grad():
-        image, gt, name = test_loader.load_data()
-        image = image.cpu().numpy()
-        time_start = time.time()
-        # 3. Run the model
-        res, _, _ = model.run(None, {input_name: image})
+    image, gt, name = test_loader.load_data()
 
-        process_time = time.time() - time_start
-        test_time.append(process_time)
+    # Ensure the input 'image' is a NumPy array, which ONNX Runtime expects.
+    # It's already on CPU after .cpu().numpy() in your original code, which is fine.
+    # ONNX Runtime will handle moving it to GPU if CUDAExecutionProvider is active.
+    image = image.cpu().numpy()
 
-        gt = np.asarray(gt, np.float32)
-        gt_h, gt_w = gt.shape[:2]
-        res_sigmoid = 1 / (1 + np.exp(-res))
-        res = np.squeeze(res_sigmoid)
-        res = cv2.resize(res, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)
-        res = (res - res.min()) / (res.max() - res.min() + 1e-8)
-        res = (res * 255).astype(np.uint8)
-        print("Saving " + name)
-        print("process_time:", process_time)
-        imageio.imsave(os.path.join(args.save_path, name[:-4] + ".png"), res)
+    time_start = time.time()
+
+    # 3. Run the model
+    # The input 'image' (a numpy array) will be sent to the specified provider (GPU if CUDA)
+    res, _, _ = model.run(None, {input_name: image})
+
+    process_time = time.time() - time_start
+    test_time.append(process_time)
+
+    gt = np.asarray(gt, np.float32)
+    gt_h, gt_w = gt.shape[:2]
+
+    # Post-processing: ONNX output 'res' is a numpy array
+    res_sigmoid = 1 / (1 + np.exp(-res))
+    res = np.squeeze(res_sigmoid)
+    res = cv2.resize(res, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)
+    res = (res - res.min()) / (res.max() - res.min() + 1e-8)
+    res = (res * 255).astype(np.uint8)
+    print("Saving " + name)
+    print("process_time:", process_time)
+    imageio.imsave(os.path.join(args.save_path, name[:-4] + ".png"), res)
 
 print("test_time:", np.mean(test_time))
