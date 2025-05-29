@@ -33,17 +33,17 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path, verbose=False, dynamic_ba
     model.eval()  # Set to evaluation mode for export (good practice)
     print("Model set to evaluation mode for ONNX export.")
 
-    input_names = ["input_0"]
-    output_names = ["output_0", "output_1", "output_2"] # Consider more descriptive names
+    input_names = ["images"]
+    output_names = ["output", "output_1", "output_2"] # Consider more descriptive names
 
     dynamic_axes = {}
     if dynamic_batch_size:
-        dynamic_axes = {'input_0': {0: 'batch_size'},
-                        'output_0': {0: 'batch_size'},
+        dynamic_axes = {'images': {0: 'batch_size'},
+                        'output': {0: 'batch_size'},
                         'output_1': {0: 'batch_size'},
                         'output_2': {0: 'batch_size'}}
         # If your model has other variable dimensions (e.g., variable image size),
-        # you would add them here too, e.g., {'input_0': {0: 'batch_size', 2: 'height', 3: 'width'}}
+        # you would add them here too, e.g., {'images': {0: 'batch_size', 2: 'height', 3: 'width'}}
 
     try:
         torch.onnx.export(
