@@ -329,9 +329,9 @@ class NormalizeImage(object):
         self.std = std
 
     def __call__(self, sample):
-        image = sample['image']
+        image, padding = sample['image'], sample['padding']
         image = F.normalize(image, self.mean, self.std)
-        return {'image': image}
+        return {'image': image, 'padding': padding}
 
 
 class TestDataset:
