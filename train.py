@@ -1,7 +1,6 @@
 import argparse
 import os
 
-import cv2
 import numpy as np
 import py_sod_metrics
 import torch
@@ -53,98 +52,6 @@ def structure_loss(pred, mask):
     return (wbce + wiou).mean()
 
 
-# --- Helper function for computing boundary weights (runs on CPU with NumPy/OpenCV) ---
-def _compute_boundary_weights_np(mask_np: np.ndarray, weight_factor: float = 10.0,
-                                 sigma: float = 5.0) -> np.ndarray:
-    """
-    Computes a boundary weight map from a single 2D binary mask using distance transform.
-
-    Args:
-        mask_np (np.ndarray): A single 2D binary mask (H, W), where foreground is 1 (or >0) and background is 0.
-                              Expected dtype: np.uint8.
-        weight_factor (float): Multiplier for the boundary weights. Higher means stronger emphasis.
-        sigma (float): Standard deviation for the Gaussian applied to the distance map.
-                       Controls the "spread" of the boundary emphasis.
-
-    Returns:
-        np.ndarray: A 2D weight map (H, W) with float32 dtype.
-    """
-    # Ensure mask is binary (0 or 255) for distanceTransform
-    mask_binary = (mask_np > 0).astype(np.uint8) * 255
-
-    # Compute distance transform for foreground (distance to nearest zero pixel)
-    dist_to_bg = cv2.distanceTransform(mask_binary, cv2.DIST_L2, 5)
-
-    # Compute distance transform for background (distance to nearest non-zero pixel)
-    dist_to_fg = cv2.distanceTransform(255 - mask_binary, cv2.DIST_L2, 5)
-
-    # Signed distance map: positive inside objects, negative outside, zero at boundary
-    signed_distance_map = dist_to_bg - dist_to_fg
-
-    # Apply a Gaussian-like weighting: highest at boundary (signed_distance_map = 0)
-    # and decreasing as distance from boundary increases.
-    # The formula exp(-(x^2) / (2 * sigma^2)) creates a bell curve centered at 0.
-    weights = weight_factor * np.exp(-(signed_distance_map**2) / (2 * sigma**2))
-
-    return weights.astype(np.float32)
-
-
-# --- Modified structure_loss function ---
-def structure_loss_boundary_aware(pred: torch.Tensor, mask: torch.Tensor,
-                                  weight_factor: float = 10.0, sigma: float = 5.0) -> torch.Tensor:
-    """
-    Calculates a boundary-aware structure loss (BCE + IoU) for semantic segmentation.
-    The boundary awareness is implemented using distance transform-based weighting.
-
-    Args:
-        pred (torch.Tensor): Model predictions (logits). Shape (N, 1, H, W).
-        mask (torch.Tensor): Ground truth masks. Shape (N, 1, H, W) or (N, H, W).
-                             Expected values: 0 or 1.
-        weight_factor (float): Multiplier for the boundary weights. Higher means stronger emphasis.
-        sigma (float): Standard deviation for the Gaussian applied to the distance map.
-                       Controls the "spread" of the boundary emphasis.
-
-    Returns:
-        torch.Tensor: The scalar boundary-aware structure loss.
-    """
-    # Ensure mask is float32 for loss calculation
-    mask = mask.float()
-
-    # Ensure mask is (N, 1, H, W) for consistency, if it's (N, H, W)
-    if mask.ndim == 3:
-        mask = mask.unsqueeze(1)
-
-    batch_size, _, H, W = mask.shape
-    device = mask.device
-
-    # --- Generate boundary weights for the current batch ---
-    # Convert mask to NumPy array (N, H, W) for OpenCV processing
-    mask_np_batch = mask.squeeze(1).cpu().numpy()  # Squeeze channel dim, move to CPU
-
-    weit_maps = []
-    for i in range(batch_size):
-        # Compute weights for each mask
-        current_weit = _compute_boundary_weights_np(mask_np_batch[i], weight_factor, sigma)
-        weit_maps.append(torch.from_numpy(current_weit).to(device))
-
-    # Stack weights to form a batch tensor (N, H, W) and unsqueeze for channel dim (N, 1, H, W)
-    weit = torch.stack(weit_maps, dim=0).unsqueeze(1)
-
-    # --- Apply weights to BCE loss (as per your original structure) ---
-    # F.binary_cross_entropy_with_logits expects target to be float
-    wbce = F.binary_cross_entropy_with_logits(pred, mask, reduction='none')
-    wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
-
-    # --- Apply weights to IoU loss (as per your original structure) ---
-    pred_sigmoid = torch.sigmoid(pred)
-    inter = ((pred_sigmoid * mask) * weit).sum(dim=(2, 3))
-    union = ((pred_sigmoid + mask) * weit).sum(dim=(2, 3))
-    wiou = 1 - (inter + 1) / (union - inter + 1)
-
-    # Return the mean of the combined BCE and IoU losses across the batch
-    return (wbce + wiou).mean()
-
-
 # Define eval metrics
 sample_gray = dict(with_adaptive=True, with_dynamic=True)
 sample_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=True)
@@ -188,9 +95,9 @@ def main(args):
             target = target.to(device)
             optim.zero_grad()
             pred0, pred1, pred2 = model(x)
-            loss0 = structure_loss_boundary_aware(pred0, target)
-            loss1 = structure_loss_boundary_aware(pred1, target)
-            loss2 = structure_loss_boundary_aware(pred2, target)
+            loss0 = structure_loss(pred0, target)
+            loss1 = structure_loss(pred1, target)
+            loss2 = structure_loss(pred2, target)
             loss = loss0 + loss1 + loss2
             epoch_loss = loss.item()
             loss.backward()
