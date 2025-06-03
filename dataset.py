@@ -28,6 +28,61 @@ class Resize(object):
                 'label': F.resize(label, self.size, interpolation=InterpolationMode.NEAREST)}
 
 
+class ResizeLongestSideAndPad(object):
+    """
+    Resizes the image and label such that the longest side matches `size`,
+    maintaining aspect ratio, and then pads the shorter side with zeros
+    to make the image square.
+    """
+
+    def __init__(self, size: int):
+        """
+        Args:
+            size (int): The target size for the longest side (e.g., 1152).
+                        The output image will be (size, size).
+        """
+        self.size = size
+
+    def __call__(self, data: dict) -> dict:
+        image, label = data['image'], data['label']
+        # Make sure image and label are PyTorch Tensors
+        # This assumes image is (C, H, W) and label is (H, W) or (1, H, W)
+        original_h, original_w = image.shape[-2:]  # Get H, W from (C, H, W)
+
+        # Calculate the scaling factor
+        scale_factor = self.size / max(original_h, original_w)
+
+        # Calculate new dimensions while maintaining aspect ratio
+        new_h = int(round(original_h * scale_factor))
+        new_w = int(round(original_w * scale_factor))
+
+        # Resize image and label
+        # For image: use bilinear or bicubic for quality
+        resized_image = F.resize(image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR)
+        # For label (mask): use nearest neighbor to preserve discrete class values
+        resized_label = F.resize(label, [new_h, new_w], interpolation=InterpolationMode.NEAREST)
+
+        # Calculate padding amounts
+        pad_h = self.size - new_h
+        pad_w = self.size - new_w
+
+        # Determine padding for top/bottom and left/right to center the image
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+
+        padding = [pad_left, pad_top, pad_right, pad_bottom]  # (left, top, right, bottom)
+
+        # Apply padding
+        # For image: pad with 0 (black) or mean pixel value if normalized
+        padded_image = F.pad(resized_image, padding, fill=0)  # fill=0 for black padding
+        # For label: pad with 0 (background class)
+        padded_label = F.pad(resized_label, padding, fill=0)  # fill=0 for background class
+
+        return {'image': padded_image, 'label': padded_label}
+
+
 class Normalize(object):
     def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
@@ -48,7 +103,7 @@ class RandomRotate(object):
         # Randomly choose rotation (0, 90, 180, 270 degrees)
         if random.random() < self.p:
             angle = random.choice([90, 180, 270])
-            return {'image': F.rotate(image, angle, interpolation=InterpolationMode.NEAREST,
+            return {'image': F.rotate(image, angle, interpolation=InterpolationMode.BILINEAR,
                                       expand=False),
                     'label': F.rotate(label, angle, interpolation=InterpolationMode.NEAREST,
                                       expand=False)}
@@ -166,7 +221,7 @@ class GaussianBlur(object):
 
 
 class FullDataset(Dataset):
-    def __init__(self, image_root, gt_root, size, mode):
+    def __init__(self, image_root: str, gt_root: str, size: int = 1152, mode: str = "train"):
         self.images = [image_root + f for f in os.listdir(image_root) if
                        f.endswith('.jpg') or f.endswith('.png')]
         self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
@@ -174,9 +229,9 @@ class FullDataset(Dataset):
         self.gts = sorted(self.gts)
         if mode == 'train':
             self.transform = transforms.Compose([
-                Resize((size, size)),
-                RandomRotate(),
                 ToTensor(),
+                ResizeLongestSideAndPad(size),
+                RandomRotate(),
                 ToGray(),
                 ColorAugmentations(),
                 GaussianBlur(),
@@ -184,8 +239,8 @@ class FullDataset(Dataset):
             ])
         else:
             self.transform = transforms.Compose([
-                Resize((size, size)),
                 ToTensor(),
+                ResizeLongestSideAndPad(size),
                 Normalize()
             ])
 
@@ -210,6 +265,75 @@ class FullDataset(Dataset):
             return img.convert('L')
 
 
+class ImageToTensor(object):
+
+    def __call__(self, data):
+        image = data['image']
+        return {'image': F.to_tensor(image)}
+
+
+class LongestMaxSizeAndPad(object):
+    """
+    Resizes the image and label such that the longest side matches `size`,
+    maintaining aspect ratio, and then pads the shorter side with zeros
+    to make the image square.
+    """
+
+    def __init__(self, size: int):
+        """
+        Args:
+            size (int): The target size for the longest side (e.g., 1152).
+                        The output image will be (size, size).
+        """
+        self.size = size
+
+    def __call__(self, data: dict) -> dict:
+        image = data['image']
+        # Make sure image and label are PyTorch Tensors
+        # This assumes image is (C, H, W) and label is (H, W) or (1, H, W)
+        original_h, original_w = image.shape[-2:]  # Get H, W from (C, H, W)
+
+        # Calculate the scaling factor
+        scale_factor = self.size / max(original_h, original_w)
+
+        # Calculate new dimensions while maintaining aspect ratio
+        new_h = int(round(original_h * scale_factor))
+        new_w = int(round(original_w * scale_factor))
+
+        # Resize image and label
+        # For image: use bilinear or bicubic for quality
+        resized_image = F.resize(image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR)
+
+        # Calculate padding amounts
+        pad_h = self.size - new_h
+        pad_w = self.size - new_w
+
+        # Determine padding for top/bottom and left/right to center the image
+        pad_top = pad_h // 2
+        pad_bottom = pad_h - pad_top
+        pad_left = pad_w // 2
+        pad_right = pad_w - pad_left
+
+        padding = [pad_left, pad_top, pad_right, pad_bottom]  # (left, top, right, bottom)
+
+        # Apply padding
+        # For image: pad with 0 (black) or mean pixel value if normalized
+        padded_image = F.pad(resized_image, padding, fill=0)  # fill=0 for black padding
+
+        return {'image': padded_image, 'padding': padding}
+
+
+class NormalizeImage(object):
+    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, sample):
+        image = sample['image']
+        image = F.normalize(image, self.mean, self.std)
+        return {'image': image}
+
+
 class TestDataset:
     def __init__(self, image_root, gt_root, size):
         self.images = [image_root + f for f in os.listdir(image_root) if
@@ -218,12 +342,10 @@ class TestDataset:
         self.images = sorted(self.images)
         self.gts = sorted(self.gts)
         self.transform = transforms.Compose([
-            transforms.Resize((size, size)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406],
-                                 [0.229, 0.224, 0.225])
+            ImageToTensor(),
+            LongestMaxSizeAndPad(size),
+            NormalizeImage()
         ])
-        self.gt_transform = transforms.ToTensor()
         self.size = len(self.images)
         self.index = 0
 
@@ -232,7 +354,10 @@ class TestDataset:
 
     def load_data(self):
         image = self.rgb_loader(self.images[self.index])
-        image = self.transform(image).unsqueeze(0)
+        data = {'image': image}
+        data = self.transform(data)
+        image = data["image"].unsqueeze(0)
+        padding = data["padding"]
 
         gt = self.binary_loader(self.gts[self.index])
         gt = np.array(gt)
@@ -240,7 +365,7 @@ class TestDataset:
         name = self.images[self.index].split('/')[-1]
 
         self.index += 1
-        return image, gt, name
+        return image, gt, name, padding
 
     def rgb_loader(self, path):
         with open(path, 'rb') as f:

@@ -151,7 +151,7 @@ def main(args):
         # Disable gradient calculations for efficiency and safety
         for i in range(test_loader.size):
             with torch.no_grad():
-                image, gt, name = test_loader.load_data()
+                image, gt, name, padding = test_loader.load_data()
                 image = image.to(device)
                 res, _, _ = model(image)
                 res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)

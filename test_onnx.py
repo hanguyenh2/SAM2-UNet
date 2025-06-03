@@ -48,7 +48,7 @@ test_time = []
 print(f"Starting inference with ONNX Runtime using providers: {model.get_providers()}")
 
 for i in range(test_loader.size):
-    image, gt, name = test_loader.load_data()
+    image, gt, name, padding = test_loader.load_data()
 
     # Ensure the input 'image' is a NumPy array, which ONNX Runtime expects.
     # It's already on CPU after .cpu().numpy() in your original code, which is fine.
