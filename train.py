@@ -153,7 +153,10 @@ def main(args):
             with torch.no_grad():
                 image, gt, name, padding = test_loader.load_data()
                 image = image.to(device)
-                res, _, _ = model(image)
+                res_padded, _, _ = model(image)
+                pad_left, pad_top, pad_right, pad_bottom = padding
+                res = res_padded[:, :, pad_top: args.size - pad_bottom,
+                      pad_left: args.size - pad_right]
                 res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()

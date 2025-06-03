@@ -58,7 +58,7 @@ for i in range(test_loader.size):
 
         # Remove padding
         pad_left, pad_top, pad_right, pad_bottom = padding
-        res = res_padded[:, :, pad_top : args.size - pad_bottom, pad_left : args.size - pad_right]
+        res = res_padded[:, :, pad_top: args.size - pad_bottom, pad_left: args.size - pad_right]
 
         # Output conversion
         res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)

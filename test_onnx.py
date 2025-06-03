@@ -59,7 +59,7 @@ for i in range(test_loader.size):
 
     # 3. Run the model
     # The input 'image' (a numpy array) will be sent to the specified provider (GPU if CUDA)
-    res, _, _ = model.run(None, {input_name: image})
+    res_padded, _, _ = model.run(None, {input_name: image})
 
     process_time = time.time() - time_start
     test_time.append(process_time)
@@ -68,6 +68,8 @@ for i in range(test_loader.size):
     gt_h, gt_w = gt.shape[:2]
 
     # Post-processing: ONNX output 'res' is a numpy array
+    pad_left, pad_top, pad_right, pad_bottom = padding
+    res = res_padded[:, :, pad_top: args.size - pad_bottom, pad_left: args.size - pad_right]
     res_sigmoid = 1 / (1 + np.exp(-res))
     res = np.squeeze(res_sigmoid)
     res = cv2.resize(res, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)
