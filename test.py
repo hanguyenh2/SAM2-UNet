@@ -17,10 +17,10 @@ parser.add_argument("--checkpoint", type=str, required=True,
 parser.add_argument("--save_path", type=str, required=True,
                     help="path to save the predicted masks")
 parser.add_argument("--test_image_path", type=str,
-                    default="../data_border/data_test/images/",
+                    default="../data_crop/data_test/images/",
                     help="path to the image files for testing")
 parser.add_argument("--test_gt_path", type=str,
-                    default="../data_border/data_test/masks/",
+                    default="../data_crop/data_test/masks/",
                     help="path to the mask files for testing")
 parser.add_argument("--size", default=1152, type=int)
 args = parser.parse_args()
@@ -44,9 +44,6 @@ for i in range(test_loader.size):
     with torch.no_grad():
         # 5.1. Load test image, gt, name and padding
         image, gt, name, padding = test_loader.load_data()
-        print("=====")
-        print("padding", padding)
-        print("gt", gt.shape)
         gt = np.asarray(gt, np.float32)
         image = image.to(device)
 

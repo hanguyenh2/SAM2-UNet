@@ -17,7 +17,7 @@ parser.add_argument("--dataset_name", type=str, required=True,
 parser.add_argument("--pred_path", type=str, required=True,
                     help="path to the prediction results")
 parser.add_argument("--gt_path", type=str,
-                    default="../data_border/data_test/masks/",
+                    default="../data_crop/data_test/masks/",
                     help="path to the ground truth masks")
 args = parser.parse_args()
 
