@@ -38,6 +38,7 @@ parser.add_argument("--batch_size", default=3, type=int)
 parser.add_argument("--size", default=1152, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
+parser.add_argument("--base_mean_iou", default=0.7, type=float)
 args = parser.parse_args()
 
 
@@ -82,7 +83,7 @@ def main(args):
     # 7. Train
     os.makedirs(args.save_path, exist_ok=True)
     epoch_loss = 2.0
-    best_mean_iou = 0.7
+    base_mean_iou = args.base_mean_iou
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         # 7.1. Train phase
@@ -176,7 +177,7 @@ def main(args):
         mean_iou = fmv2["iou"]["dynamic"].mean()
         print(
             "\nepoch-{}: loss: {} mIoU: {} best_mIoU: {}\n".format(epoch + 1, epoch_loss, mean_iou,
-                                                                   best_mean_iou))
+                                                                   base_mean_iou))
 
         # 7.3. Save checkpoint
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
@@ -184,8 +185,8 @@ def main(args):
                                            f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print('Saving Snapshot:', save_model_path)
-        elif mean_iou > best_mean_iou:
-            best_mean_iou = mean_iou
+        elif mean_iou > base_mean_iou:
+            base_mean_iou = mean_iou
             save_model_path = os.path.join(args.save_path,
                                            f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
