@@ -31,8 +31,7 @@ parser.add_argument("--test_gt_path", type=str,
 parser.add_argument('--save_path', type=str,
                     default="../checkpoints_1152/",
                     help="path to store the checkpoint")
-parser.add_argument("--epoch", type=int, default=150,
-                    help="training epochs")
+parser.add_argument("--epoch", type=int, default=200, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=3, type=int)
 parser.add_argument("--size", default=1152, type=int)
