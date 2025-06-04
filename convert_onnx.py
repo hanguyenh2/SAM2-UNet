@@ -76,14 +76,13 @@ parser.add_argument("--dynamic_batch_size", action="store_true",
                     help="Export ONNX model with dynamic batch size.")
 parser.add_argument("--verify", action="store_true", default=True,
                     help="Verify the ONNX model output against PyTorch output.")
-parser.add_argument("--model_cfg", default="sam2_hiera_l.yaml", type=str)
 args = parser.parse_args()
 
 # 1. Load your PyTorch model from .pth
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = SAM2UNet(model_cfg=args.model_cfg).to(device)
+model = SAM2UNet().to(device)
 model.load_state_dict(torch.load(args.checkpoint, map_location=device), strict=True)
 
 # 2. Create a dummy input tensor with the correct shape

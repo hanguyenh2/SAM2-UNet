@@ -124,8 +124,9 @@ class RFB_modified(nn.Module):
 
 
 class SAM2UNet(nn.Module):
-    def __init__(self, model_cfg: str, checkpoint_path=None) -> None:
+    def __init__(self, checkpoint_path=None) -> None:
         super(SAM2UNet, self).__init__()
+        model_cfg = "sam2_hiera_t.yaml"
         if checkpoint_path:
             model = build_sam2(model_cfg, checkpoint_path)
         else:
@@ -140,20 +141,20 @@ class SAM2UNet(nn.Module):
         del model.image_encoder.neck
         self.encoder = model.image_encoder.trunk
 
-        for param in self.encoder.parameters():
-            param.requires_grad = False
-        blocks = []
-        for block in self.encoder.blocks:
-            blocks.append(
-                Adapter(block)
-            )
-        self.encoder.blocks = nn.Sequential(
-            *blocks
-        )
-        self.rfb1 = RFB_modified(144, 64)
-        self.rfb2 = RFB_modified(288, 64)
-        self.rfb3 = RFB_modified(576, 64)
-        self.rfb4 = RFB_modified(1152, 64)
+        # for param in self.encoder.parameters():
+        #     param.requires_grad = False
+        # blocks = []
+        # for block in self.encoder.blocks:
+        #     blocks.append(
+        #         Adapter(block)
+        #     )
+        # self.encoder.blocks = nn.Sequential(
+        #     *blocks
+        # )
+        self.rfb1 = RFB_modified(96, 64)
+        self.rfb2 = RFB_modified(192, 64)
+        self.rfb3 = RFB_modified(384, 64)
+        self.rfb4 = RFB_modified(768, 64)
         self.up1 = (Up(128, 64))
         self.up2 = (Up(128, 64))
         self.up3 = (Up(128, 64))
@@ -175,17 +176,10 @@ class SAM2UNet(nn.Module):
 
 
 if __name__ == "__main__":
+    input_size = (3, 1152, 1152)
     with torch.no_grad():
-        input_size = (1, 3, 1152, 1152)
-        print("sam2_hiera_l.yaml============================")
-        model = SAM2UNet(model_cfg="sam2_hiera_l.yaml").cuda()
+        model = SAM2UNet().cuda()
+        x = torch.randn(1, 3, 1152, 1152).cuda()
+        out, out1, out2 = model(x)
         print(summary(model, input_size=input_size))
-        print("sam2_hiera_s.yaml============================")
-        model = SAM2UNet(model_cfg="sam2_hiera_s.yaml").cuda()
-        print(summary(model, input_size=input_size))
-        print("sam2_hiera_t.yaml============================")
-        model = SAM2UNet(model_cfg="sam2_hiera_t.yaml").cuda()
-        print(summary(model, input_size=input_size))
-        print("sam2_hiera_b.yaml============================")
-        model = SAM2UNet(model_cfg="sam2_hiera_b+.yaml").cuda()
-        print(summary(model, input_size=input_size))
+        print(out.shape, out1.shape, out2.shape)
