@@ -32,10 +32,10 @@ parser.add_argument('--save_path', type=str,
                     default="../checkpoints_1152/",
                     help="path to store the checkpoint")
 parser.add_argument("--epoch", type=int, default=250, help="training epochs")
-parser.add_argument("--lr", type=float, default=0.005, help="learning rate")
+parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=12, type=int)
 parser.add_argument("--size", default=1152, type=int)
-parser.add_argument("--weight_decay", default=1e-4, type=float)
+parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
 parser.add_argument("--base_mean_iou", default=0.75, type=float)
 args = parser.parse_args()
