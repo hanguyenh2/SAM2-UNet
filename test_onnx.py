@@ -22,11 +22,13 @@ parser.add_argument("--test_gt_path", type=str,
                     default="../data_crop/data_test/masks/",
                     help="path to the mask files for testing")
 parser.add_argument("--size", default=1152, type=int)
+parser.add_argument("--use_cpu", action="store_true", default=False,
+                    help="inference using CPU")
 args = parser.parse_args()
 
 # Determine the device for ONNX Runtime
 # Check if CUDA is available in PyTorch, then map to ONNX Runtime providers
-if torch.cuda.is_available():
+if torch.cuda.is_available() and not args.use_cpu:
     # Attempt to use CUDAExecutionProvider, fallback to CPU if CUDA is not fully set up for ONNX Runtime
     providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
     print("CUDA is available. Attempting to use GPU for ONNX Runtime.")

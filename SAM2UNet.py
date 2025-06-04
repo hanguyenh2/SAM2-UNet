@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
+
 from sam2.build_sam import build_sam2
 
 
@@ -22,8 +24,8 @@ class DoubleConv(nn.Module):
 
     def forward(self, x):
         return self.double_conv(x)
-    
-    
+
+
 class Up(nn.Module):
     """Upscaling then double conv"""
 
@@ -65,7 +67,7 @@ class Adapter(nn.Module):
         promped = x + prompt
         net = self.block(promped)
         return net
-    
+
 
 class BasicConv2d(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1):
@@ -80,7 +82,7 @@ class BasicConv2d(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         return x
-    
+
 
 class RFB_modified(nn.Module):
     def __init__(self, in_channel, out_channel):
@@ -107,7 +109,7 @@ class RFB_modified(nn.Module):
             BasicConv2d(out_channel, out_channel, kernel_size=(7, 1), padding=(3, 0)),
             BasicConv2d(out_channel, out_channel, 3, padding=7, dilation=7)
         )
-        self.conv_cat = BasicConv2d(4*out_channel, out_channel, 3, padding=1)
+        self.conv_cat = BasicConv2d(4 * out_channel, out_channel, 3, padding=1)
         self.conv_res = BasicConv2d(in_channel, out_channel, 1)
 
     def forward(self, x):
@@ -122,9 +124,8 @@ class RFB_modified(nn.Module):
 
 
 class SAM2UNet(nn.Module):
-    def __init__(self, checkpoint_path=None) -> None:
-        super(SAM2UNet, self).__init__()    
-        model_cfg = "sam2_hiera_l.yaml"
+    def __init__(self, model_cfg: str, checkpoint_path=None) -> None:
+        super(SAM2UNet, self).__init__()
         if checkpoint_path:
             model = build_sam2(model_cfg, checkpoint_path)
         else:
@@ -175,7 +176,15 @@ class SAM2UNet(nn.Module):
 
 if __name__ == "__main__":
     with torch.no_grad():
-        model = SAM2UNet().cuda()
-        x = torch.randn(1, 3, 352, 352).cuda()
-        out, out1, out2 = model(x)
-        print(out.shape, out1.shape, out2.shape)
+        print("sam2_hiera_l.yaml============================")
+        model = SAM2UNet(model_cfg="sam2_hiera_l.yaml").cuda()
+        print(summary(model, input_size=1152))
+        print("sam2_hiera_s.yaml============================")
+        model = SAM2UNet(model_cfg="sam2_hiera_s.yaml").cuda()
+        print(summary(model, input_size=1152))
+        print("sam2_hiera_t.yaml============================")
+        model = SAM2UNet(model_cfg="sam2_hiera_t.yaml").cuda()
+        print(summary(model, input_size=1152))
+        print("sam2_hiera_b.yaml============================")
+        model = SAM2UNet(model_cfg="sam2_hiera_b+.yaml").cuda()
+        print(summary(model, input_size=1152))

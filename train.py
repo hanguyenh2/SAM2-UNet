@@ -39,6 +39,7 @@ parser.add_argument("--size", default=1152, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
 parser.add_argument("--base_mean_iou", default=0.7, type=float)
+parser.add_argument("--model_cfg", default="sam2_hiera_l.yaml", type=str)
 args = parser.parse_args()
 
 
@@ -69,7 +70,7 @@ def main(args):
     # Set device
     device = torch.device("cuda")
     # Load model to device
-    model = SAM2UNet().to(device)
+    model = SAM2UNet(model_cfg=args.model_cfg).to(device)
 
     # 4. Load checkpoint if provided
     if len(args.checkpoint) > 0:

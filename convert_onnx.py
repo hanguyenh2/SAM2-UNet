@@ -4,12 +4,13 @@ import os
 import torch
 import torch.onnx
 
-from SAM2UNet import SAM2UNet # Assuming SAM2UNet is your model class
+from SAM2UNet import SAM2UNet
 
 # For verification (install with pip install onnxruntime numpy)
 try:
     import onnxruntime as ort
     import numpy as np
+
     _has_onnxruntime = True
 except ImportError:
     _has_onnxruntime = False
@@ -34,7 +35,7 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path, verbose=False, dynamic_ba
     print("Model set to evaluation mode for ONNX export.")
 
     input_names = ["images"]
-    output_names = ["output", "output_1", "output_2"] # Consider more descriptive names
+    output_names = ["output", "output_1", "output_2"]  # Consider more descriptive names
 
     dynamic_axes = {}
     if dynamic_batch_size:
@@ -51,11 +52,11 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path, verbose=False, dynamic_ba
             dummy_input,
             onnx_path,
             export_params=True,
-            opset_version=14, # Consider lowering if compatibility issues arise (e.g., 11 or 12)
+            opset_version=14,  # Consider lowering if compatibility issues arise (e.g., 11 or 12)
             do_constant_folding=True,
             input_names=input_names,
             output_names=output_names,
-            dynamic_axes=dynamic_axes, # Added dynamic axes
+            dynamic_axes=dynamic_axes,  # Added dynamic axes
             verbose=verbose,
         )
         print(f"Model successfully exported to ONNX: {onnx_path}")
@@ -75,17 +76,18 @@ parser.add_argument("--dynamic_batch_size", action="store_true",
                     help="Export ONNX model with dynamic batch size.")
 parser.add_argument("--verify", action="store_true", default=True,
                     help="Verify the ONNX model output against PyTorch output.")
+parser.add_argument("--model_cfg", default="sam2_hiera_l.yaml", type=str)
 args = parser.parse_args()
 
 # 1. Load your PyTorch model from .pth
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-model = SAM2UNet().to(device)
-model.load_state_dict(torch.load(args.checkpoint, map_location=device), strict=True) # map_location added for robustness
+model = SAM2UNet(model_cfg=args.model_cfg).to(device)
+model.load_state_dict(torch.load(args.checkpoint, map_location=device), strict=True)
 
 # 2. Create a dummy input tensor with the correct shape
-dummy_input = torch.randn(1, 3, args.size, args.size).to(device) # Moved to device
+dummy_input = torch.randn(1, 3, args.size, args.size).to(device)  # Moved to device
 
 # 3. Define the output path for the ONNX file
 checkpoint_name = os.path.splitext(os.path.basename(args.checkpoint))[0]
@@ -105,7 +107,9 @@ if success and args.verify and _has_onnxruntime:
 
         # Initialize ONNX Runtime session
         # Prefer CUDA if available, otherwise fallback to CPU
-        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
+        providers = ['CUDAExecutionProvider',
+                     'CPUExecutionProvider'] if torch.cuda.is_available() else [
+            'CPUExecutionProvider']
         ort_session = ort.InferenceSession(onnx_path, providers=providers)
 
         # Get PyTorch model output for comparison
@@ -118,13 +122,14 @@ if success and args.verify and _has_onnxruntime:
 
         # Get ONNX model output
         ort_inputs = {ort_session.get_inputs()[0].name: dummy_input_np}
-        ort_outputs = ort_session.run(None, ort_inputs) # None for all outputs
+        ort_outputs = ort_session.run(None, ort_inputs)  # None for all outputs
 
         # Compare outputs numerically
         for i, (torch_out_np, ort_out_np) in enumerate(zip(torch_outputs_np, ort_outputs)):
             # Use allclose for floating-point comparison
             np.testing.assert_allclose(torch_out_np, ort_out_np, rtol=1e-03, atol=1e-05)
-            print(f"Output {i} matched between PyTorch and ONNX (max diff: {np.max(np.abs(torch_out_np - ort_out_np)):.2e})")
+            print(
+                f"Output {i} matched between PyTorch and ONNX (max diff: {np.max(np.abs(torch_out_np - ort_out_np)):.2e})")
         print("ONNX model verified successfully!")
 
     except Exception as e:
