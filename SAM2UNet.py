@@ -176,15 +176,16 @@ class SAM2UNet(nn.Module):
 
 if __name__ == "__main__":
     with torch.no_grad():
+        input_size = (1, 3, 1152, 1152)
         print("sam2_hiera_l.yaml============================")
         model = SAM2UNet(model_cfg="sam2_hiera_l.yaml").cuda()
-        print(summary(model, input_size=1152))
+        print(summary(model, input_size=input_size))
         print("sam2_hiera_s.yaml============================")
         model = SAM2UNet(model_cfg="sam2_hiera_s.yaml").cuda()
-        print(summary(model, input_size=1152))
+        print(summary(model, input_size=input_size))
         print("sam2_hiera_t.yaml============================")
         model = SAM2UNet(model_cfg="sam2_hiera_t.yaml").cuda()
-        print(summary(model, input_size=1152))
+        print(summary(model, input_size=input_size))
         print("sam2_hiera_b.yaml============================")
         model = SAM2UNet(model_cfg="sam2_hiera_b+.yaml").cuda()
-        print(summary(model, input_size=1152))
+        print(summary(model, input_size=input_size))
