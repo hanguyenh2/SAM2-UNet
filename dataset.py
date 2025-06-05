@@ -38,7 +38,7 @@ class ResizeLongestSideAndPad(object):
     def __init__(self, size: int):
         """
         Args:
-            size (int): The target size for the longest side (e.g., 1152).
+            size (int): The target size for the longest side.
                         The output image will be (size, size).
         """
         self.size = size
@@ -221,7 +221,7 @@ class GaussianBlur(object):
 
 
 class FullDataset(Dataset):
-    def __init__(self, image_root: str, gt_root: str, size: int = 1152, mode: str = "train"):
+    def __init__(self, image_root: str, gt_root: str, size: int, mode: str = "train"):
         self.images = [image_root + f for f in os.listdir(image_root) if
                        f.endswith('.jpg') or f.endswith('.png')]
         self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
@@ -282,7 +282,7 @@ class LongestMaxSizeAndPad(object):
     def __init__(self, size: int):
         """
         Args:
-            size (int): The target size for the longest side (e.g., 1152).
+            size (int): The target size for the longest side.
                         The output image will be (size, size).
         """
         self.size = size
@@ -335,7 +335,7 @@ class NormalizeImage(object):
 
 
 class TestDataset:
-    def __init__(self, image_root, gt_root, size):
+    def __init__(self, image_root: str, gt_root: str, size: int):
         self.images = [image_root + f for f in os.listdir(image_root) if
                        f.endswith('.jpg') or f.endswith('.png')]
         self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]

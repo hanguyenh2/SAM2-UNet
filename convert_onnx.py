@@ -70,7 +70,7 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path, verbose=False, dynamic_ba
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, required=True,
                     help="path to the checkpoint of sam2-unet")
-parser.add_argument("--size", default=1152, type=int,
+parser.add_argument("--size", default=1280, type=int,
                     help="Input image size (height and width) for the model.")
 parser.add_argument("--dynamic_batch_size", action="store_true",
                     help="Export ONNX model with dynamic batch size.")
