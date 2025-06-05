@@ -13,6 +13,8 @@ from SAM2UNet import SAM2UNet
 from dataset import FullDataset, TestDataset
 
 parser = argparse.ArgumentParser("SAM2-UNet")
+parser.add_argument('--save_path', type=str, required=True,
+                    help="path to store the checkpoint")
 parser.add_argument("--checkpoint", type=str,
                     default="",
                     help="path to the checkpoint of sam2-unet")
@@ -28,9 +30,6 @@ parser.add_argument("--test_image_path", type=str,
 parser.add_argument("--test_gt_path", type=str,
                     default="../data_crop/data_test/masks/",
                     help="path to the mask file for evaluating")
-parser.add_argument('--save_path', type=str,
-                    default="../checkpoints_1152/",
-                    help="path to store the checkpoint")
 parser.add_argument("--epoch", type=int, default=250, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=12, type=int)

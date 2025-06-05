@@ -8,4 +8,5 @@ imageio
 pysodmetrics
 opencv-python
 onnx
-onnxruntime
+onnxruntime-gpu
+torchsummary

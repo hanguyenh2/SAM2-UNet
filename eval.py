@@ -12,8 +12,6 @@ MAE = py_sod_metrics.MAE()
 MSIOU = py_sod_metrics.MSIoU()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_name", type=str, required=True,
-                    help="path to the prediction results")
 parser.add_argument("--pred_path", type=str, required=True,
                     help="path to the prediction results")
 parser.add_argument("--gt_path", type=str,
@@ -96,7 +94,7 @@ curr_results = {
     "MAE": mae,
 }
 
-print(args.dataset_name)
+print("\nEvaluation results:")
 print("mDice:       ", format(curr_results['meandice'], '.3f'))
 print("mIoU:        ", format(curr_results['meaniou'], '.3f'))
 print("S_{alpha}:   ", format(curr_results['Smeasure'], '.3f'))
