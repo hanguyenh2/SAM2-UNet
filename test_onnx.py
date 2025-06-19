@@ -21,7 +21,7 @@ parser.add_argument("--test_image_path", type=str,
 parser.add_argument("--test_gt_path", type=str,
                     default="../data_crop/data_test/masks/",
                     help="path to the mask files for testing")
-parser.add_argument("--size", default=768, type=int)
+parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--use_cpu", action="store_true", default=False,
                     help="inference using CPU")
 args = parser.parse_args()

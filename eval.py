@@ -2,7 +2,29 @@ import argparse
 import os
 
 import cv2
+import numpy as np
 import py_sod_metrics
+
+
+def find_contours_with_parent(mask: np.ndarray) -> np.array:
+    """Return contours with parent found in mask"""
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    contours_with_parent = []
+    for i, contour in enumerate(contours):
+        parent_idx = hierarchy[0][i][3]
+        if parent_idx != -1 and hierarchy[0][parent_idx][3] == -1:
+            contours_with_parent.append(contour)
+    return contours_with_parent
+
+
+def create_room_mask(mask: np.ndarray, windoor_mask: np.ndarray) -> np.ndarray:
+    wall_mask = cv2.bitwise_or(mask, windoor_mask)
+    room_contours = find_contours_with_parent(wall_mask)
+    room_mask = np.zeros_like(mask)
+    for i, room_contour in enumerate(room_contours):
+        cv2.drawContours(room_mask, [room_contour], 0, 255, thickness=cv2.FILLED)
+    return room_mask
+
 
 FM = py_sod_metrics.Fmeasure()
 WFM = py_sod_metrics.WeightedFmeasure()
@@ -17,6 +39,9 @@ parser.add_argument("--pred_path", type=str, required=True,
 parser.add_argument("--gt_path", type=str,
                     default="../data_crop/data_test/masks/",
                     help="path to the ground truth masks")
+parser.add_argument("--masks_windoor_path", type=str,
+                    default="../data_crop/data_test/masks_windoor/",
+                    help="path to the windoor masks")
 args = parser.parse_args()
 
 sample_gray = dict(with_adaptive=True, with_dynamic=True)
@@ -62,13 +87,18 @@ FMv2 = py_sod_metrics.FmeasureV2(
 
 pred_root = args.pred_path
 mask_root = args.gt_path
+mask_windoor_root = args.masks_windoor_path
 mask_name_list = sorted(os.listdir(mask_root))
 for i, mask_name in enumerate(mask_name_list):
     print(f"[{i}] Processing {mask_name}...")
     mask_path = os.path.join(mask_root, mask_name)
     pred_path = os.path.join(pred_root, mask_name[:-4] + '.png')
+    mask_windoor_path = os.path.join(mask_windoor_root, mask_name[:-4] + '.png')
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
     pred = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
+    windoor_mask = cv2.imread(mask_windoor_path, cv2.IMREAD_GRAYSCALE)
+    mask = create_room_mask(mask, windoor_mask)
+    pred = create_room_mask(pred, windoor_mask)
 
     FM.step(pred=pred, gt=mask)
     WFM.step(pred=pred, gt=mask)
