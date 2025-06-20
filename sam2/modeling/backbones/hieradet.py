@@ -10,14 +10,12 @@ from typing import List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from sam2.modeling.backbones.utils import (
     PatchEmbed,
     window_partition,
     window_unpartition,
 )
-
-from sam2.modeling.sam2_utils import DropPath, MLP
+from sam2.modeling.sam2_utils import MLP, DropPath
 
 
 def do_pool(x: torch.Tensor, pool: nn.Module, norm: nn.Module = None) -> torch.Tensor:
@@ -109,9 +107,7 @@ class MultiScaleBlock(nn.Module):
 
         self.pool, self.q_stride = None, q_stride
         if self.q_stride:
-            self.pool = nn.MaxPool2d(
-                kernel_size=q_stride, stride=q_stride, ceil_mode=False
-            )
+            self.pool = nn.MaxPool2d(kernel_size=q_stride, stride=q_stride, ceil_mode=False)
 
         self.attn = MultiScaleAttention(
             dim,
@@ -158,9 +154,12 @@ class MultiScaleBlock(nn.Module):
             pad_w = (window_size - W % window_size) % window_size
             pad_hw = (H + pad_h, W + pad_w)
 
-        # Reverse window partition
-        if self.window_size > 0:
-            x = window_unpartition(x, window_size, pad_hw, (H, W))
+            # Reverse window partition
+            if self.window_size > 0:
+                x = window_unpartition(x, window_size, pad_hw, pad_h, pad_w)
+        else:
+            if window_size > 0:
+                x = window_unpartition(x, window_size, pad_hw, pad_hw[0] - H, pad_hw[1] - W)
 
         x = shortcut + self.drop_path(x)
         # MLP
@@ -286,9 +285,7 @@ class Hiera(nn.Module):
         outputs = []
         for i, blk in enumerate(self.blocks):
             x = blk(x)
-            if (i == self.stage_ends[-1]) or (
-                i in self.stage_ends and self.return_interm_layers
-            ):
+            if (i == self.stage_ends[-1]) or (i in self.stage_ends and self.return_interm_layers):
                 feats = x.permute(0, 3, 1, 2)
                 outputs.append(feats)
 
