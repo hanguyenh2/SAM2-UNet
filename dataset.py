@@ -30,7 +30,7 @@ class ToTensor(object):
         # To ensure we get the raw integer class IDs, we convert the PIL image to a
         # NumPy array first, ensuring its integer dtype, then to a PyTorch tensor of type torch.long.
         label_numpy = np.array(label, dtype=np.int64)  # Ensure integer type for class IDs
-        label_tensor = torch.from_numpy(label_numpy).long()  # Convert to torch.long (int64)
+        label_tensor = torch.from_numpy(label_numpy).float()  # Convert to torch.long (int64)
 
         # Most segmentation models expect labels as (H, W) or (N, H, W) (no channel dimension).
         # If your model expects a channel dimension (e.g., (1, H, W)) for labels,
@@ -469,8 +469,10 @@ class TestDataset:
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
-    train_image_path = "./data_mini/data_train/images/"
-    train_mask_path = "./data_mini/data_train/masks/"
+    # train_image_path = "./data_mini/data_train/images/"
+    # train_mask_path = "./data_mini/data_train/masks/"
+    train_image_path = "./task209_wall_kasagi_tategu/images/"
+    train_mask_path = "./task209_wall_kasagi_tategu/masks/"
     size = 960
     batch_size = 1
     dataset = FullDataset(train_image_path, train_mask_path, size, mode='train')
@@ -479,7 +481,5 @@ if __name__ == "__main__":
         x = batch['image']
         target = batch['label'].squeeze().numpy()
         print("==============")
-        print(np.min(target))
-        print(np.max(target))
         print(np.unique(target))
         print(np.shape(target))
