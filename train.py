@@ -19,16 +19,16 @@ parser.add_argument("--checkpoint", type=str,
                     default="",
                     help="path to the checkpoint of sam2-unet")
 parser.add_argument("--train_image_path", type=str,
-                    default="../data_crop/data_train/images/",
+                    default="../wall_seg/data_train/images/",
                     help="path to the image that used to train the model")
 parser.add_argument("--train_mask_path", type=str,
-                    default="../data_crop/data_train/masks/",
+                    default="../wall_seg/data_train/masks/",
                     help="path to the mask file for training")
 parser.add_argument("--test_image_path", type=str,
-                    default="../data_crop/data_test/images/",
+                    default="../wall_seg/data_test/images/",
                     help="path to the image that used to evaluate the model")
 parser.add_argument("--test_gt_path", type=str,
-                    default="../data_crop/data_test/masks/",
+                    default="../wall_seg/data_test/masks/",
                     help="path to the mask file for evaluating")
 parser.add_argument("--epoch", type=int, default=250, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
@@ -53,8 +53,6 @@ def structure_loss(pred, mask):
 
 # Define eval metrics
 sample_gray = dict(with_adaptive=True, with_dynamic=True)
-sample_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=True)
-overall_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=False)
 
 
 def main(args):
@@ -110,39 +108,7 @@ def main(args):
         # init FMv2
         FMv2 = py_sod_metrics.FmeasureV2(
             metric_handlers={
-                "fm": py_sod_metrics.FmeasureHandler(**sample_gray, beta=0.3),
-                "f1": py_sod_metrics.FmeasureHandler(**sample_gray, beta=1),
-                "pre": py_sod_metrics.PrecisionHandler(**sample_gray),
-                "rec": py_sod_metrics.RecallHandler(**sample_gray),
-                "fpr": py_sod_metrics.FPRHandler(**sample_gray),
                 "iou": py_sod_metrics.IOUHandler(**sample_gray),
-                "dice": py_sod_metrics.DICEHandler(**sample_gray),
-                "spec": py_sod_metrics.SpecificityHandler(**sample_gray),
-                "ber": py_sod_metrics.BERHandler(**sample_gray),
-                "oa": py_sod_metrics.OverallAccuracyHandler(**sample_gray),
-                "kappa": py_sod_metrics.KappaHandler(**sample_gray),
-                "sample_bifm": py_sod_metrics.FmeasureHandler(**sample_bin, beta=0.3),
-                "sample_bif1": py_sod_metrics.FmeasureHandler(**sample_bin, beta=1),
-                "sample_bipre": py_sod_metrics.PrecisionHandler(**sample_bin),
-                "sample_birec": py_sod_metrics.RecallHandler(**sample_bin),
-                "sample_bifpr": py_sod_metrics.FPRHandler(**sample_bin),
-                "sample_biiou": py_sod_metrics.IOUHandler(**sample_bin),
-                "sample_bidice": py_sod_metrics.DICEHandler(**sample_bin),
-                "sample_bispec": py_sod_metrics.SpecificityHandler(**sample_bin),
-                "sample_biber": py_sod_metrics.BERHandler(**sample_bin),
-                "sample_bioa": py_sod_metrics.OverallAccuracyHandler(**sample_bin),
-                "sample_bikappa": py_sod_metrics.KappaHandler(**sample_bin),
-                "overall_bifm": py_sod_metrics.FmeasureHandler(**overall_bin, beta=0.3),
-                "overall_bif1": py_sod_metrics.FmeasureHandler(**overall_bin, beta=1),
-                "overall_bipre": py_sod_metrics.PrecisionHandler(**overall_bin),
-                "overall_birec": py_sod_metrics.RecallHandler(**overall_bin),
-                "overall_bifpr": py_sod_metrics.FPRHandler(**overall_bin),
-                "overall_biiou": py_sod_metrics.IOUHandler(**overall_bin),
-                "overall_bidice": py_sod_metrics.DICEHandler(**overall_bin),
-                "overall_bispec": py_sod_metrics.SpecificityHandler(**overall_bin),
-                "overall_biber": py_sod_metrics.BERHandler(**overall_bin),
-                "overall_bioa": py_sod_metrics.OverallAccuracyHandler(**overall_bin),
-                "overall_bikappa": py_sod_metrics.KappaHandler(**overall_bin),
             }
         )
         # Set model to evaluation mode
