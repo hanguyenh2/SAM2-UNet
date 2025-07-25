@@ -144,17 +144,17 @@ def main(args):
                                                                    base_mean_iou))
 
         # 7.3. Save checkpoint
-        if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
-            save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
-            torch.save(model.state_dict(), save_model_path)
-            print('Saving Snapshot:', save_model_path)
-        elif mean_iou > base_mean_iou:
+        if mean_iou > base_mean_iou:
             base_mean_iou = mean_iou
             save_model_path = os.path.join(args.save_path,
                                            f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print(f'Saving Snapshot best:', save_model_path)
+        elif (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
+            save_model_path = os.path.join(args.save_path,
+                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
+            torch.save(model.state_dict(), save_model_path)
+            print('Saving Snapshot:', save_model_path)
 
 
 # def seed_torch(seed=1024):
