@@ -30,7 +30,7 @@ parser.add_argument("--test_image_path", type=str,
 parser.add_argument("--test_gt_path", type=str,
                     default="../wall_seg/data_test/masks/",
                     help="path to the mask file for evaluating")
-parser.add_argument("--epoch", type=int, default=250, help="training epochs")
+parser.add_argument("--epoch", type=int, default=500, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=16, type=int)
 parser.add_argument("--size", default=960, type=int)

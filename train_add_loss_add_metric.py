@@ -189,35 +189,34 @@ parser.add_argument(
 parser.add_argument(
     "--train_image_path",
     type=str,
-    default="data/batch123456/images/",
+    default="../wall_seg/data_train/images/",
     help="path to the image that used to train the model",
 )
 parser.add_argument(
     "--train_mask_path",
     type=str,
-    default="data/batch123456/masks/",
+    default="../wall_seg/data_train/masks/",
     help="path to the mask file for training",
 )
 parser.add_argument(
     "--test_image_path",
     type=str,
-    default="data/batch123456/images/",
+    default="../wall_seg/data_test/images/",
     help="path to the image that used to evaluate the model",
 )
 parser.add_argument(
     "--test_gt_path",
     type=str,
-    default="data/batch123456/masks/",
+    default="../wall_seg/data_test/masks/",
     help="path to the mask file for evaluating",
 )
-parser.add_argument("--epoch", type=int, default=350, help="training epochs")
+parser.add_argument("--epoch", type=int, default=500, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=16, type=int)
 parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=20, type=int)
-parser.add_argument("--base_mean_iou", default=0.75, type=float)
-parser.add_argument("--base_composite_score", default=0.75, type=float)
+parser.add_argument("--base_score", default=0.75, type=float)
 
 # NEW: Enhanced loss parameters
 parser.add_argument("--boundary_weight", default=0.3, type=float, help="Weight for boundary loss")
@@ -339,8 +338,6 @@ def save_loss_metrics(metrics_history, save_path, epoch):
 
 # Define eval metrics
 sample_gray = dict(with_adaptive=True, with_dynamic=True)
-sample_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=True)
-overall_bin = dict(with_adaptive=False, with_dynamic=False, with_binary=True, sample_based=False)
 
 
 def main(args):
@@ -378,8 +375,7 @@ def main(args):
     metrics_history = []
 
     epoch_loss = 2.0
-    base_mean_iou = args.base_mean_iou
-    base_composite_score = args.base_composite_score
+    base_score = args.base_score
     save_interval = args.save_interval
 
     for epoch in range(args.epoch):
@@ -447,38 +443,8 @@ def main(args):
         FMv2 = py_sod_metrics.FmeasureV2(
             metric_handlers={
                 "fm": py_sod_metrics.FmeasureHandler(**sample_gray, beta=0.3),
-                "f1": py_sod_metrics.FmeasureHandler(**sample_gray, beta=1),
                 "pre": py_sod_metrics.PrecisionHandler(**sample_gray),
-                "rec": py_sod_metrics.RecallHandler(**sample_gray),
-                "fpr": py_sod_metrics.FPRHandler(**sample_gray),
                 "iou": py_sod_metrics.IOUHandler(**sample_gray),
-                "dice": py_sod_metrics.DICEHandler(**sample_gray),
-                "spec": py_sod_metrics.SpecificityHandler(**sample_gray),
-                "ber": py_sod_metrics.BERHandler(**sample_gray),
-                "oa": py_sod_metrics.OverallAccuracyHandler(**sample_gray),
-                "kappa": py_sod_metrics.KappaHandler(**sample_gray),
-                "sample_bifm": py_sod_metrics.FmeasureHandler(**sample_bin, beta=0.3),
-                "sample_bif1": py_sod_metrics.FmeasureHandler(**sample_bin, beta=1),
-                "sample_bipre": py_sod_metrics.PrecisionHandler(**sample_bin),
-                "sample_birec": py_sod_metrics.RecallHandler(**sample_bin),
-                "sample_bifpr": py_sod_metrics.FPRHandler(**sample_bin),
-                "sample_biiou": py_sod_metrics.IOUHandler(**sample_bin),
-                "sample_bidice": py_sod_metrics.DICEHandler(**sample_bin),
-                "sample_bispec": py_sod_metrics.SpecificityHandler(**sample_bin),
-                "sample_biber": py_sod_metrics.BERHandler(**sample_bin),
-                "sample_bioa": py_sod_metrics.OverallAccuracyHandler(**sample_bin),
-                "sample_bikappa": py_sod_metrics.KappaHandler(**sample_bin),
-                "overall_bifm": py_sod_metrics.FmeasureHandler(**overall_bin, beta=0.3),
-                "overall_bif1": py_sod_metrics.FmeasureHandler(**overall_bin, beta=1),
-                "overall_bipre": py_sod_metrics.PrecisionHandler(**overall_bin),
-                "overall_birec": py_sod_metrics.RecallHandler(**overall_bin),
-                "overall_bifpr": py_sod_metrics.FPRHandler(**overall_bin),
-                "overall_biiou": py_sod_metrics.IOUHandler(**overall_bin),
-                "overall_bidice": py_sod_metrics.DICEHandler(**overall_bin),
-                "overall_bispec": py_sod_metrics.SpecificityHandler(**overall_bin),
-                "overall_biber": py_sod_metrics.BERHandler(**overall_bin),
-                "overall_bioa": py_sod_metrics.OverallAccuracyHandler(**overall_bin),
-                "overall_bikappa": py_sod_metrics.KappaHandler(**overall_bin),
             }
         )
         # Set model to evaluation mode
@@ -551,7 +517,6 @@ def main(args):
         test_loader.reset_index()
         # Get mIoU
         fmv2 = FMv2.get_results()
-        mean_iou = fmv2["iou"]["dynamic"].mean()
 
         # Combine multiple metrics with weights
         boundary_f03 = fmv2["fm"]["dynamic"].mean()  # Boundary quality
@@ -566,14 +531,8 @@ def main(args):
             save_loss_metrics(metrics_history, vis_path, epoch + 1)
 
         print(
-            "\nepoch-{}: loss: {} mIoU: {} best_mIoU: {}\n".format(
-                epoch + 1, epoch_loss, mean_iou, base_mean_iou
-            )
-        )
-
-        print(
-            "\nepoch-{}: loss: {} mIoU: {} best_score: {}\n".format(
-                epoch + 1, epoch_loss, composite_score, base_composite_score
+            "\nepoch-{}: loss: {} score: {} best_score: {}\n".format(
+                epoch + 1, epoch_loss, composite_score, base_score
             )
         )
 
@@ -581,13 +540,12 @@ def main(args):
         if (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(
                 args.save_path,
-                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{composite_score:.3f}.pth",
+                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_score-{composite_score:.3f}.pth",
             )
             torch.save(model.state_dict(), save_model_path)
             print("Saving Snapshot:", save_model_path)
-        # elif mean_iou > base_mean_iou:
-        elif composite_score > base_composite_score:
-            base_composite_score = composite_score
+        elif composite_score > base_score:
+            base_score = composite_score
             save_model_path = os.path.join(
                 args.save_path,
                 f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_score-{composite_score:.3f}.pth",
