@@ -241,7 +241,7 @@ def structure_loss(pred, mask):
     return (wbce + wiou).mean()
 
 
-def create_visualization(image, gt, pred, pred_processed, name, save_path, checkpoint_name, epoch):
+def create_visualization(image, gt, pred, pred_processed, name, save_path, checkpoint_name):
     """
     Create and save visualization showing original image, GT, prediction, and processed prediction
     """
@@ -282,7 +282,7 @@ def create_visualization(image, gt, pred, pred_processed, name, save_path, check
 
     # Create filename
     image_name_clean = os.path.splitext(name)[0]  # Remove extension
-    filename = f"{checkpoint_name}_epoch-{epoch}_{image_name_clean}.png"
+    filename = f"{checkpoint_name}_{image_name_clean}.png"
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_path, filename), dpi=150, bbox_inches='tight')
@@ -504,7 +504,6 @@ def main(args):
                         name=name,
                         save_path=vis_path,
                         checkpoint_name=checkpoint_name,
-                        epoch=epoch + 1
                     )
 
                 # Evaluate
