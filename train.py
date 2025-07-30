@@ -19,16 +19,16 @@ parser.add_argument("--checkpoint", type=str,
                     default="",
                     help="path to the checkpoint of sam2-unet")
 parser.add_argument("--train_image_path", type=str,
-                    default="../wall_seg/data_train/images/",
+                    default="../wall_seg_crop/data_train/images/",
                     help="path to the image that used to train the model")
 parser.add_argument("--train_mask_path", type=str,
-                    default="../wall_seg/data_train/masks/",
+                    default="../wall_seg_crop/data_train/masks/",
                     help="path to the mask file for training")
 parser.add_argument("--test_image_path", type=str,
-                    default="../wall_seg/data_test/images/",
+                    default="../wall_seg_crop/data_test/images/",
                     help="path to the image that used to evaluate the model")
 parser.add_argument("--test_gt_path", type=str,
-                    default="../wall_seg/data_test/masks/",
+                    default="../wall_seg_crop/data_test/masks/",
                     help="path to the mask file for evaluating")
 parser.add_argument("--epoch", type=int, default=500, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
