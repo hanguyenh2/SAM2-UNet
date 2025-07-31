@@ -17,10 +17,10 @@ parser.add_argument("--checkpoint", type=str, required=True,
 parser.add_argument("--save_path", type=str, required=True,
                     help="path to save the predicted masks")
 parser.add_argument("--test_image_path", type=str,
-                    default="../wall_seg/data_test/images/",
+                    default="../wall_seg_crop/data_test/images/",
                     help="path to the image files for testing")
 parser.add_argument("--test_gt_path", type=str,
-                    default="../wall_seg/data_test/masks/",
+                    default="../wall_seg_crop/data_test/masks/",
                     help="path to the mask files for testing")
 parser.add_argument("--size", default=1152, type=int)
 args = parser.parse_args()
