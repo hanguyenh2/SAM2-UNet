@@ -126,7 +126,7 @@ class RFB_modified(nn.Module):
 class SAM2UNet(nn.Module):
     def __init__(self, checkpoint_path=None) -> None:
         super(SAM2UNet, self).__init__()
-        model_cfg = "sam2_hiera_t.yaml"
+        model_cfg = "sam2_hiera_s.yaml"
         if checkpoint_path:
             model = build_sam2(model_cfg, checkpoint_path)
         else:
@@ -176,10 +176,10 @@ class SAM2UNet(nn.Module):
 
 
 if __name__ == "__main__":
-    input_size = (3, 960, 960)
+    input_size = (3, 1440, 1440)
     with torch.no_grad():
         model = SAM2UNet().cuda()
-        x = torch.randn(1, 3, 960, 960).cuda()
+        x = torch.randn(1, 3, 1440, 1440).cuda()
         out, out1, out2 = model(x)
         print(summary(model, input_size=input_size))
         print(out.shape, out1.shape, out2.shape)

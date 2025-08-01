@@ -180,8 +180,7 @@ def post_process_predictions(pred_tensor, min_area=50):
 
 
 parser = argparse.ArgumentParser("SAM2-UNet")
-parser.add_argument("--save_path", type=str, required=False,
-                    default="playground/exp_960size_enhanced_losses_composite_score_lr_0001_350e",
+parser.add_argument("--save_path", type=str, required=True,
                     help="path to store the checkpoint")
 parser.add_argument(
     "--checkpoint", type=str, default="", help="path to the checkpoint of sam2-unet"
@@ -210,10 +209,10 @@ parser.add_argument(
     default="../wall_seg_crop/data_test/masks/",
     help="path to the mask file for evaluating",
 )
-parser.add_argument("--epoch", type=int, default=500, help="training epochs")
+parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=16, type=int)
-parser.add_argument("--size", default=960, type=int)
+parser.add_argument("--batch_size", default=6, type=int)
+parser.add_argument("--size", default=1440, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=20, type=int)
 parser.add_argument("--base_score", default=0.75, type=float)

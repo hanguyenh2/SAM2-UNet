@@ -3,6 +3,7 @@ import os
 
 import torch
 import torch.onnx
+
 from SAM2UNet import SAM2UNet
 
 # For verification (install with pip install onnxruntime numpy)
@@ -73,7 +74,7 @@ parser.add_argument(
     "--checkpoint", type=str, required=True, help="path to the checkpoint of sam2-unet"
 )
 parser.add_argument(
-    "--size", default=960, type=int, help="Input image size (height and width) for the model."
+    "--size", default=1440, type=int, help="Input image size (height and width) for the model."
 )
 # parser.add_argument(
 #     "--dynamic_batch_size", action="store_true", help="Export ONNX model with dynamic batch size."
