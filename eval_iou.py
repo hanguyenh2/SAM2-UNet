@@ -31,9 +31,6 @@ parser.add_argument("--pred_path", type=str, required=True,
 parser.add_argument("--gt_path", type=str,
                     default="../wall_seg_crop/data_test/masks/",
                     help="path to the ground truth masks")
-parser.add_argument("--masks_windoor_path", type=str,
-                    default="../wall_seg_crop/data_test/masks_windoor/",
-                    help="path to the windoor masks")
 args = parser.parse_args()
 
 # 2. Define FmeasureV2
@@ -48,17 +45,16 @@ FMv2 = py_sod_metrics.FmeasureV2(
 # 3. Get info from args
 pred_root = args.pred_path
 mask_root = args.gt_path
-mask_windoor_root = args.masks_windoor_path
 mask_name_list = sorted(os.listdir(mask_root))
 
 # 4. Evaluate
 for i, mask_name in enumerate(mask_name_list):
+    # print(mask_name)
     # if "0183_1-AP_001-FL_0183-越" not in mask_name:
     #     continue
     # 4.1. Get file info
     mask_path = os.path.join(mask_root, mask_name)
     pred_path = os.path.join(pred_root, mask_name[:-4] + '.png')
-    mask_windoor_path = os.path.join(mask_windoor_root, mask_name[:-4] + '.png')
     # 4.2. Read images
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
     pred = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
