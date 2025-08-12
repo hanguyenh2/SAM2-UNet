@@ -51,6 +51,51 @@ def structure_loss(pred, mask):
     return (wbce + wiou).mean()
 
 
+def focal_tversky_loss(pred, mask, gamma=0.75, alpha=0.7, beta=0.3, epsilon=1e-6):
+    """
+    A combined loss function for segmentation that addresses class imbalance
+    and focuses on hard-to-classify pixels, specifically penalizing false positives.
+
+    Args:
+        pred (torch.Tensor): The raw model predictions (logits) of shape (N, C, H, W).
+        mask (torch.Tensor): The ground truth mask of shape (N, C, H, W).
+        gamma (float): Focal loss parameter to down-weight easy examples.
+                       A higher value (e.g., 2.0) focuses more on hard examples.
+        alpha (float): Tversky loss parameter for weighting False Positives.
+                       A value > 0.5 penalizes FP more.
+        beta (float): Tversky loss parameter for weighting False Negatives.
+                      A value < 0.5 penalizes FN more.
+        epsilon (float): A small value to prevent division by zero.
+
+    Returns:
+        torch.Tensor: The calculated loss value.
+    """
+    # 1. Calculate the boundary weight map. This is kept from your original code.
+    # It gives more importance to pixels at the edge of the object.
+    weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
+
+    # 2. Apply a sigmoid to the predictions to get probabilities.
+    pred_sig = torch.sigmoid(pred)
+
+    # 3. Calculate weighted True Positives, False Positives, and False Negatives.
+    # We use the `weit` map to apply a higher penalty at the boundaries.
+    TP = (pred_sig * mask * weit).sum(dim=(2, 3))
+    FP = (pred_sig * (1 - mask) * weit).sum(dim=(2, 3))
+    FN = ((1 - pred_sig) * mask * weit).sum(dim=(2, 3))
+
+    # 4. Calculate the Tversky Index, which is a generalization of the Dice coefficient.
+    # By setting alpha > beta, we penalize False Positives more than False Negatives.
+    # This directly addresses your problem with furniture and grid lines.
+    tversky_index = (TP + epsilon) / (TP + alpha * FP + beta * FN + epsilon)
+
+    # 5. Calculate the Focal Tversky Loss.
+    # The `gamma` parameter focuses the training on hard examples (the pixels
+    # the model gets wrong), which helps the model learn to detect thin walls.
+    focal_tversky = torch.pow((1 - tversky_index), gamma)
+
+    return focal_tversky.mean()
+
+
 # Define eval metrics
 sample_gray = dict(with_adaptive=True, with_dynamic=True)
 
@@ -92,9 +137,9 @@ def main(args):
             target = target.to(device)
             optim.zero_grad()
             pred0, pred1, pred2 = model(x)
-            loss0 = structure_loss(pred0, target)
-            loss1 = structure_loss(pred1, target)
-            loss2 = structure_loss(pred2, target)
+            loss0 = focal_tversky_loss(pred0, target)
+            loss1 = focal_tversky_loss(pred1, target)
+            loss2 = focal_tversky_loss(pred2, target)
             loss = loss0 + loss1 + loss2
             epoch_loss = loss.item()
             loss.backward()
