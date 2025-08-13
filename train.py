@@ -32,7 +32,7 @@ parser.add_argument("--test_gt_path", type=str,
                     help="path to the mask file for evaluating")
 parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=6, type=int)
+parser.add_argument("--batch_size", default=16, type=int)
 parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
