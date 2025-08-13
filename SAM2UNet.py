@@ -176,10 +176,10 @@ class SAM2UNet(nn.Module):
 
 
 if __name__ == "__main__":
-    input_size = (3, 1440, 1440)
+    input_size = (3, 960, 960)
     with torch.no_grad():
         model = SAM2UNet().cuda()
-        x = torch.randn(1, 3, 1440, 1440).cuda()
+        x = torch.randn(1, 3, 960, 960).cuda()
         out, out1, out2 = model(x)
         print(summary(model, input_size=input_size))
         print(out.shape, out1.shape, out2.shape)
