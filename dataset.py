@@ -134,7 +134,7 @@ class ToGray(object):
 
 
 class ColorAugmentations(object):
-    def __init__(self, p=0.8):
+    def __init__(self, p=0.5):
         """
         Applies a random color augmentation with a given probability.
         Args:
@@ -234,7 +234,6 @@ class FullDataset(Dataset):
                 RandomRotate(),
                 ToGray(),
                 ColorAugmentations(),
-                GaussianBlur(),
                 Normalize()
             ])
         else:
