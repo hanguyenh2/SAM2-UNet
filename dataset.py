@@ -110,6 +110,29 @@ class RandomRotate(object):
         return {'image': image, 'label': label}
 
 
+class ToGray(object):
+    def __init__(self, p=0.5, num_output_channels=3):
+        """
+        Converts a 3-channel image to grayscale using F.rgb_to_grayscale.
+        Args:
+            p (float): Probability of applying the transform. Default is 1.0 (always apply).
+            num_output_channels (int): Number of output channels (1 or 3).
+                                       Typically 3 to keep input shape consistent for models.
+        """
+        self.p = p
+        self.num_output_channels = num_output_channels
+
+    def __call__(self, data):
+        image, label = data['image'], data['label']
+
+        if random.random() < self.p:
+            # F.rgb_to_grayscale expects a torch.Tensor (float, CHW)
+            # Make sure this transform is applied AFTER ToTensor
+            image = F.rgb_to_grayscale(image, num_output_channels=self.num_output_channels)
+
+        return {'image': image, 'label': label}
+
+
 class ColorAugmentations(object):
     def __init__(self, p=0.7):
         """
@@ -167,6 +190,36 @@ class ColorAugmentations(object):
         return {'image': image, 'label': label}
 
 
+class GaussianBlur(object):
+    def __init__(self, p=0.2, blur_limit=(3, 5)):
+        """
+        Applies Gaussian blur with a given probability and random kernel size.
+        Args:
+            p (float): Probability of applying the blur. Default is 0.3.
+            blur_limit (tuple): A tuple (min_kernel_size, max_kernel_size) for the blur kernel.
+                                  Kernel sizes must be odd integers.
+        """
+        self.p = p
+        # Ensure blur_limit contains only odd integers for kernel_size
+        self.kernel_sizes = [k for k in range(blur_limit[0], blur_limit[1] + 1) if k % 2 == 1]
+        if not self.kernel_sizes:
+            raise ValueError("blur_limit must contain at least one odd integer for kernel_size.")
+
+    def __call__(self, data):
+        image, label = data['image'], data['label']
+
+        if random.random() < self.p:
+            # Randomly choose a kernel size from the allowed odd integers
+            kernel_size = random.choice(self.kernel_sizes)
+
+            # F.gaussian_blur expects a torch.Tensor (float, CHW)
+            # Its kernel_size argument can be a single integer or a tuple (height, width).
+            # For a square kernel, pass (kernel_size, kernel_size).
+            image = F.gaussian_blur(image, kernel_size=[kernel_size, kernel_size])
+
+        return {'image': image, 'label': label}
+
+
 class FullDataset(Dataset):
     def __init__(self, image_root: str, gt_root: str, size: int, mode: str = "train"):
         self.images = [image_root + f for f in os.listdir(image_root) if
@@ -179,7 +232,9 @@ class FullDataset(Dataset):
                 ToTensor(),
                 ResizeLongestSideAndPad(size),
                 RandomRotate(),
+                ToGray(),
                 ColorAugmentations(),
+                GaussianBlur(),
                 Normalize()
             ])
         else:
