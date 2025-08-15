@@ -111,7 +111,7 @@ class RandomRotate(object):
 
 
 class ToGray(object):
-    def __init__(self, p=0.5, num_output_channels=3):
+    def __init__(self, p=0.2, num_output_channels=3):
         """
         Converts a 3-channel image to grayscale using F.rgb_to_grayscale.
         Args:
@@ -134,7 +134,7 @@ class ToGray(object):
 
 
 class ColorAugmentations(object):
-    def __init__(self, p=0.7):
+    def __init__(self, p=0.8):
         """
         Applies a random color augmentation with a given probability.
         Args:
