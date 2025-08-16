@@ -124,10 +124,10 @@ class RFB_modified(nn.Module):
 
 
 class SAM2UNet(nn.Module):
-    def __init__(self, checkpoint_path=None) -> None:
+    def __init__(self, checkpoint_path="") -> None:
         super(SAM2UNet, self).__init__()
         model_cfg = "sam2_hiera_s.yaml"
-        if checkpoint_path:
+        if len(checkpoint_path) > 0:
             model = build_sam2(model_cfg, checkpoint_path)
         else:
             model = build_sam2(model_cfg)

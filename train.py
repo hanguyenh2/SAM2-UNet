@@ -15,6 +15,9 @@ from dataset import FullDataset, TestDataset
 parser = argparse.ArgumentParser("SAM2-UNet")
 parser.add_argument('--save_path', type=str, required=True,
                     help="path to store the checkpoint")
+parser.add_argument("--hiera_path", type=str,
+                    default="",
+                    help="path to the sam2 pretrained hiera")
 parser.add_argument("--checkpoint", type=str,
                     default="",
                     help="path to the checkpoint of sam2-unet")
@@ -65,7 +68,7 @@ def main(args):
     # Set device
     device = torch.device("cuda")
     # Load model to device
-    model = SAM2UNet().to(device)
+    model = SAM2UNet(checkpoint_path=args.hiera_path).to(device)
 
     # 4. Load checkpoint if provided
     if len(args.checkpoint) > 0:
