@@ -141,16 +141,16 @@ class SAM2UNet(nn.Module):
         del model.image_encoder.neck
         self.encoder = model.image_encoder.trunk
 
-        # for param in self.encoder.parameters():
-        #     param.requires_grad = False
-        # blocks = []
-        # for block in self.encoder.blocks:
-        #     blocks.append(
-        #         Adapter(block)
-        #     )
-        # self.encoder.blocks = nn.Sequential(
-        #     *blocks
-        # )
+        for param in self.encoder.parameters():
+            param.requires_grad = False
+        blocks = []
+        for block in self.encoder.blocks:
+            blocks.append(
+                Adapter(block)
+            )
+        self.encoder.blocks = nn.Sequential(
+            *blocks
+        )
         self.rfb1 = RFB_modified(96, 64)
         self.rfb2 = RFB_modified(192, 64)
         self.rfb3 = RFB_modified(384, 64)
