@@ -84,7 +84,7 @@ class ResizeLongestSideAndPad(object):
 
 
 class Normalize(object):
-    def __init__(self, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
         self.std = std
 
@@ -324,7 +324,7 @@ class LongestMaxSizeAndPad(object):
 
 
 class NormalizeImage(object):
-    def __init__(self, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
         self.std = std
 
