@@ -35,11 +35,12 @@ parser.add_argument("--test_gt_path", type=str,
                     help="path to the mask file for evaluating")
 parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=16, type=int)
-parser.add_argument("--size", default=960, type=int)
+parser.add_argument("--batch_size", default=6, type=int)
+parser.add_argument("--size", default=1536, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
-parser.add_argument("--base_mean_iou", default=0.75, type=float)
+parser.add_argument("--base_mean_iou", default=0.8, type=float)
+parser.add_argument("--auto_save_iou", default=0.87, type=float)
 args = parser.parse_args()
 
 
@@ -83,6 +84,7 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
     epoch_loss = 2.0
     base_mean_iou = args.base_mean_iou
+    auto_save_iou = args.auto_save_iou
     save_interval = args.save_interval
     for epoch in range(args.epoch):
         # 7.1. Train phase
@@ -153,6 +155,11 @@ def main(args):
                                            f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
             torch.save(model.state_dict(), save_model_path)
             print(f'Saving Snapshot best:', save_model_path)
+        elif mean_iou > auto_save_iou:
+            save_model_path = os.path.join(args.save_path,
+                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
+            torch.save(model.state_dict(), save_model_path)
+            print(f'Auto Saving Good Snapshot:', save_model_path)
         elif (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             save_model_path = os.path.join(args.save_path,
                                            f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
