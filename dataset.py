@@ -1,3 +1,4 @@
+import os
 import random
 
 import cv2
@@ -110,7 +111,8 @@ class ResizeLongestSideAndPad(object):
 
         # 3.4. Resize image and label
         # For image: use bilinear or bicubic for quality
-        resized_image = F.resize(processed_image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR)
+        resized_image = F.resize(processed_image, [new_h, new_w],
+                                 interpolation=InterpolationMode.BILINEAR)
         # For label (mask): use nearest neighbor to preserve discrete class values
         resized_label = F.resize(processed_label, [new_h, new_w],
                                  interpolation=InterpolationMode.NEAREST)
@@ -432,7 +434,6 @@ class TestDataset:
 
 
 if __name__ == "__main__":
-    import os
 
     train_image_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/images/"
     train_mask_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/masks/"
