@@ -141,16 +141,16 @@ class SAM2UNet(nn.Module):
         del model.image_encoder.neck
         self.encoder = model.image_encoder.trunk
 
-        for param in self.encoder.parameters():
-            param.requires_grad = False
-        blocks = []
-        for block in self.encoder.blocks:
-            blocks.append(
-                Adapter(block)
-            )
-        self.encoder.blocks = nn.Sequential(
-            *blocks
-        )
+        # for param in self.encoder.parameters():
+        #     param.requires_grad = False
+        # blocks = []
+        # for block in self.encoder.blocks:
+        #     blocks.append(
+        #         Adapter(block)
+        #     )
+        # self.encoder.blocks = nn.Sequential(
+        #     *blocks
+        # )
         self.rfb1 = RFB_modified(96, 64)
         self.rfb2 = RFB_modified(192, 64)
         self.rfb3 = RFB_modified(384, 64)
@@ -176,10 +176,10 @@ class SAM2UNet(nn.Module):
 
 
 if __name__ == "__main__":
-    input_size = (3, 1536, 1536)
+    input_size = (3, 960, 960)
     with torch.no_grad():
         model = SAM2UNet().cuda()
-        x = torch.randn(1, 3, 1536, 1536).cuda()
+        x = torch.randn(1, 3, 960, 960).cuda()
         out, out1, out2 = model(x)
         print(summary(model, input_size=input_size))
         print(out.shape, out1.shape, out2.shape)
