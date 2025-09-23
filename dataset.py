@@ -1,9 +1,10 @@
-import os
 import random
 
+import cv2
 import numpy as np
 import torchvision.transforms.functional as F
 from PIL import Image
+from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
@@ -35,38 +36,90 @@ class ResizeLongestSideAndPad(object):
     to make the image square.
     """
 
-    def __init__(self, size: int):
+    def __init__(self, size: int, p: float = 0.5):
         """
         Args:
             size (int): The target size for the longest side.
                         The output image will be (size, size).
         """
         self.size = size
+        self.p = p
+        self.pad_range = (1.0, 1.5)
+        self.crop_range = (0.5, 1.0)
 
     def __call__(self, data: dict) -> dict:
         image, label = data['image'], data['label']
-        # Make sure image and label are PyTorch Tensors
-        # This assumes image is (C, H, W) and label is (H, W) or (1, H, W)
-        original_h, original_w = image.shape[-2:]  # Get H, W from (C, H, W)
 
-        # Calculate the scaling factor
-        scale_factor = self.size / max(original_h, original_w)
+        original_h, original_w = image.shape[-2:]
 
-        # Calculate new dimensions while maintaining aspect ratio
-        new_h = int(round(original_h * scale_factor))
-        new_w = int(round(original_w * scale_factor))
+        # 1. Pad with white
+        if random.random() < self.p:
+            # 1.1. Randomize scale_factor to pad
+            scale_factor = random.uniform(*self.pad_range)
 
-        # Resize image and label
+            # 1.2. Calculate new dimensions while maintaining aspect ratio
+            new_h = int(round(original_h * scale_factor))
+            new_w = int(round(original_w * scale_factor))
+
+            # 1.3. Calculate padding amounts
+            pad_h = new_h - original_h
+            pad_w = new_w - original_w
+
+            # 1.4. Determine padding for top/bottom and left/right
+            pad_top = random.randint(0, pad_h)
+            pad_bottom = pad_h - pad_top
+            pad_left = random.randint(0, pad_w)
+            pad_right = pad_w - pad_left
+
+            # 1.5. Pad image with 1 and Pad label with 0
+            padding = [pad_left, pad_right, pad_top, pad_bottom]
+            processed_image = F.pad(image, padding, fill=1.0)
+            processed_label = F.pad(label, padding, fill=0)
+
+        # 2. Random crop
+        else:
+            # 2.1. Randomize scale_factor to crop
+            scale_factor = random.uniform(*self.crop_range)
+
+            # 2.2. Calculate new dimensions while maintaining aspect ratio
+            new_h = int(round(original_h * scale_factor))
+            new_w = int(round(original_w * scale_factor))
+
+            # Ensure crop dimensions are not zero
+            new_h = max(1, new_h)
+            new_w = max(1, new_w)
+
+            # Choose a random top-left corner for the crop
+            y1 = random.randint(0, original_h - new_h)
+            x1 = random.randint(0, original_w - new_w)
+
+            # Perform the crop using slicing
+            processed_image = image[..., y1:y1 + new_h, x1:x1 + new_w]
+            processed_label = label[..., y1:y1 + new_h, x1:x1 + new_w]
+
+        # 3. Perform LongestMaxSize
+        # 3.1. Get processed_image dimensions
+        processed_h, processed_w = processed_image.shape[-2:]
+
+        # 3.2 Calculate the scaling factor
+        scale_factor = self.size / max(processed_h, processed_w)
+
+        # 3.3. Calculate new dimensions while maintaining aspect ratio
+        new_h = int(round(processed_h * scale_factor))
+        new_w = int(round(processed_w * scale_factor))
+
+        # 3.4. Resize image and label
         # For image: use bilinear or bicubic for quality
-        resized_image = F.resize(image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR)
+        resized_image = F.resize(processed_image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR)
         # For label (mask): use nearest neighbor to preserve discrete class values
-        resized_label = F.resize(label, [new_h, new_w], interpolation=InterpolationMode.NEAREST)
+        resized_label = F.resize(processed_label, [new_h, new_w],
+                                 interpolation=InterpolationMode.NEAREST)
 
-        # Calculate padding amounts
+        # 3.5. Calculate padding amounts
         pad_h = self.size - new_h
         pad_w = self.size - new_w
 
-        # Determine padding for top/bottom and left/right to center the image
+        # 3.6. Determine padding for top/bottom and left/right to center the image
         pad_top = pad_h // 2
         pad_bottom = pad_h - pad_top
         pad_left = pad_w // 2
@@ -74,7 +127,7 @@ class ResizeLongestSideAndPad(object):
 
         padding = [pad_left, pad_top, pad_right, pad_bottom]  # (left, top, right, bottom)
 
-        # Apply padding
+        # 3.7. Apply padding
         # For image: pad with 0 (black) or mean pixel value if normalized
         padded_image = F.pad(resized_image, padding, fill=0)  # fill=0 for black padding
         # For label: pad with 0 (background class)
@@ -111,7 +164,7 @@ class RandomRotate(object):
 
 
 class ToGray(object):
-    def __init__(self, p=0.2, num_output_channels=3):
+    def __init__(self, p=0.5, num_output_channels=3):
         """
         Converts a 3-channel image to grayscale using F.rgb_to_grayscale.
         Args:
@@ -143,11 +196,11 @@ class ColorAugmentations(object):
         self.p = p
         # Define ranges for each type of color jitter.
         # These ranges are common defaults or similar to Albumentations defaults.
-        self.brightness_range = (0.8, 1.2)  # For RandomBrightnessContrast
-        self.contrast_range = (0.8, 1.2)  # For RandomBrightnessContrast
-        self.saturation_range = (0.8, 1.2)  # For HueSaturationValue, ColorJitter
-        self.hue_range = (-0.1, 0.1)  # For HueSaturationValue, ColorJitter (-0.5 to 0.5)
-        self.gamma_range = (0.7, 1.3)  # For RandomGamma
+        self.brightness_range = (0.5, 1.5)  # For RandomBrightnessContrast
+        self.contrast_range = (0.5, 1.5)  # For RandomBrightnessContrast
+        self.saturation_range = (0.5, 1.5)  # For HueSaturationValue, ColorJitter
+        self.hue_range = (-0.5, 0.5)  # For HueSaturationValue, ColorJitter (-0.5 to 0.5)
+        self.gamma_range = (0.5, 1.5)  # For RandomGamma
 
     def __call__(self, data):
         image, label = data['image'], data['label']
@@ -376,3 +429,46 @@ class TestDataset:
         with open(path, 'rb') as f:
             img = Image.open(f)
             return img.convert('L')
+
+
+if __name__ == "__main__":
+    import os
+
+    train_image_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/images/"
+    train_mask_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/masks/"
+    result_dir = "result"
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)
+    # 1. Load train data
+    dataset = FullDataset(train_image_path, train_mask_path, 1600, mode='train')
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    for i, batch in enumerate(dataloader):
+        if i > 100:
+            break
+
+        image = batch['image'][0]
+        label = batch['label'][0]
+        # Denormalize the image
+        for channel, m, s in zip(image, mean, std):
+            channel.mul_(s).add_(m)
+        # Denormalize the label
+        for channel, m, s in zip(label, mean, std):
+            channel.mul_(s).add_(m)
+        # Convert from PyTorch tensor format (C, H, W) to NumPy format (H, W, C)
+        np_image = image.numpy()
+        np_image = np.transpose(np_image, (1, 2, 0))
+        np_label = label.numpy()
+        np_label = np.transpose(np_label, (1, 2, 0))
+
+        # Clip values to [0, 1] range and display
+        np_image = np.clip(np_image, 0, 1)
+        np_label = np.clip(np_label, 0, 1)
+        print("============")
+        print(np_image.shape)
+        print(np_image.max())
+        print(np_label.shape)
+        print(np_label.max())
+        cv2.imwrite(os.path.join(result_dir, f"{i}.jpg"), np_image * 255)
+        cv2.imwrite(os.path.join(result_dir, f"label_{i}.jpg"), np_label * 255)
