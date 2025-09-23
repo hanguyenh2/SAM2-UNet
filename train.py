@@ -40,7 +40,7 @@ parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
 parser.add_argument("--base_mean_iou", default=0.8, type=float)
-parser.add_argument("--auto_save_iou", default=0.85, type=float)
+parser.add_argument("--auto_save_iou", default=0.84, type=float)
 args = parser.parse_args()
 
 
