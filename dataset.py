@@ -56,11 +56,12 @@ class ResizeLongestSideAndPad(object):
         # 1. Pad with white
         if random.random() < self.p:
             # 1.1. Randomize scale_factor to pad
-            scale_factor = random.uniform(*self.pad_range)
+            scale_factor_h = random.uniform(*self.pad_range)
+            scale_factor_w = random.uniform(*self.pad_range)
 
             # 1.2. Calculate new dimensions while maintaining aspect ratio
-            new_h = int(round(original_h * scale_factor))
-            new_w = int(round(original_w * scale_factor))
+            new_h = int(round(original_h * scale_factor_h))
+            new_w = int(round(original_w * scale_factor_w))
 
             # 1.3. Calculate padding amounts
             pad_h = new_h - original_h
@@ -80,11 +81,12 @@ class ResizeLongestSideAndPad(object):
         # 2. Random crop
         else:
             # 2.1. Randomize scale_factor to crop
-            scale_factor = random.uniform(*self.crop_range)
+            scale_factor_h = random.uniform(*self.crop_range)
+            scale_factor_w = random.uniform(*self.crop_range)
 
             # 2.2. Calculate new dimensions while maintaining aspect ratio
-            new_h = int(round(original_h * scale_factor))
-            new_w = int(round(original_w * scale_factor))
+            new_h = int(round(original_h * scale_factor_h))
+            new_w = int(round(original_w * scale_factor_w))
 
             # Ensure crop dimensions are not zero
             new_h = max(1, new_h)
