@@ -189,8 +189,8 @@ ocr = PaddleOCR(
 )
 
 input_dirs = [
-    "real_data_box/test",
-    "real_data_box/train",
+    "../real_data_box/test",
+    "../real_data_box/train",
 ]
 
 for input_dir in input_dirs:
