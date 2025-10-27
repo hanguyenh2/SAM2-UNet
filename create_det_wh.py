@@ -55,6 +55,7 @@ def standardize_text(text: str) -> str:
     text = text.replace("有", "")
     text = text.replace("効", "")
     text = text.replace("效", "")
+    text = text.replace("m", "")
     # Filter . from the first 3 characters of the text
     if len(text) > 3:
         filtered_text = text[:3].replace(".", "")
