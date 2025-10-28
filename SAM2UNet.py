@@ -19,7 +19,7 @@ class DoubleConv(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -32,7 +32,7 @@ class Up(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
-        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
 
     def forward(self, x1, x2):
@@ -41,8 +41,7 @@ class Up(nn.Module):
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
 
-        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
-                        diffY // 2, diffY - diffY // 2])
+        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
         # if you have padding issues, see
         # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
@@ -52,14 +51,11 @@ class Up(nn.Module):
 
 class Adapter(nn.Module):
     def __init__(self, blk) -> None:
-        super(Adapter, self).__init__()
+        super().__init__()
         self.block = blk
         dim = blk.attn.qkv.in_features
         self.prompt_learn = nn.Sequential(
-            nn.Linear(dim, 32),
-            nn.GELU(),
-            nn.Linear(32, dim),
-            nn.GELU()
+            nn.Linear(dim, 32), nn.GELU(), nn.Linear(32, dim), nn.GELU()
         )
 
     def forward(self, x):
@@ -71,10 +67,16 @@ class Adapter(nn.Module):
 
 class BasicConv2d(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1):
-        super(BasicConv2d, self).__init__()
-        self.conv = nn.Conv2d(in_planes, out_planes,
-                              kernel_size=kernel_size, stride=stride,
-                              padding=padding, dilation=dilation, bias=False)
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_planes,
+            out_planes,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            bias=False,
+        )
         self.bn = nn.BatchNorm2d(out_planes)
         self.relu = nn.ReLU(inplace=True)
 
@@ -86,7 +88,7 @@ class BasicConv2d(nn.Module):
 
 class RFB_modified(nn.Module):
     def __init__(self, in_channel, out_channel):
-        super(RFB_modified, self).__init__()
+        super().__init__()
         self.relu = nn.ReLU(True)
         self.branch0 = nn.Sequential(
             BasicConv2d(in_channel, out_channel, 1),
@@ -95,19 +97,19 @@ class RFB_modified(nn.Module):
             BasicConv2d(in_channel, out_channel, 1),
             BasicConv2d(out_channel, out_channel, kernel_size=(1, 3), padding=(0, 1)),
             BasicConv2d(out_channel, out_channel, kernel_size=(3, 1), padding=(1, 0)),
-            BasicConv2d(out_channel, out_channel, 3, padding=3, dilation=3)
+            BasicConv2d(out_channel, out_channel, 3, padding=3, dilation=3),
         )
         self.branch2 = nn.Sequential(
             BasicConv2d(in_channel, out_channel, 1),
             BasicConv2d(out_channel, out_channel, kernel_size=(1, 5), padding=(0, 2)),
             BasicConv2d(out_channel, out_channel, kernel_size=(5, 1), padding=(2, 0)),
-            BasicConv2d(out_channel, out_channel, 3, padding=5, dilation=5)
+            BasicConv2d(out_channel, out_channel, 3, padding=5, dilation=5),
         )
         self.branch3 = nn.Sequential(
             BasicConv2d(in_channel, out_channel, 1),
             BasicConv2d(out_channel, out_channel, kernel_size=(1, 7), padding=(0, 3)),
             BasicConv2d(out_channel, out_channel, kernel_size=(7, 1), padding=(3, 0)),
-            BasicConv2d(out_channel, out_channel, 3, padding=7, dilation=7)
+            BasicConv2d(out_channel, out_channel, 3, padding=7, dilation=7),
         )
         self.conv_cat = BasicConv2d(4 * out_channel, out_channel, 3, padding=1)
         self.conv_res = BasicConv2d(in_channel, out_channel, 1)
@@ -125,7 +127,7 @@ class RFB_modified(nn.Module):
 
 class SAM2UNet(nn.Module):
     def __init__(self, checkpoint_path="") -> None:
-        super(SAM2UNet, self).__init__()
+        super().__init__()
         model_cfg = "sam2_hiera_s.yaml"
         if len(checkpoint_path) > 0:
             model = build_sam2(model_cfg, checkpoint_path)
@@ -145,20 +147,16 @@ class SAM2UNet(nn.Module):
             param.requires_grad = False
         blocks = []
         for block in self.encoder.blocks:
-            blocks.append(
-                Adapter(block)
-            )
-        self.encoder.blocks = nn.Sequential(
-            *blocks
-        )
+            blocks.append(Adapter(block))
+        self.encoder.blocks = nn.Sequential(*blocks)
         self.rfb1 = RFB_modified(96, 64)
         self.rfb2 = RFB_modified(192, 64)
         self.rfb3 = RFB_modified(384, 64)
         self.rfb4 = RFB_modified(768, 64)
-        self.up1 = (Up(128, 64))
-        self.up2 = (Up(128, 64))
-        self.up3 = (Up(128, 64))
-        self.up4 = (Up(128, 64))
+        self.up1 = Up(128, 64)
+        self.up2 = Up(128, 64)
+        self.up3 = Up(128, 64)
+        self.up4 = Up(128, 64)
         self.side1 = nn.Conv2d(64, 1, kernel_size=1)
         self.side2 = nn.Conv2d(64, 1, kernel_size=1)
         self.head = nn.Conv2d(64, 1, kernel_size=1)
@@ -167,19 +165,19 @@ class SAM2UNet(nn.Module):
         x1, x2, x3, x4 = self.encoder(x)
         x1, x2, x3, x4 = self.rfb1(x1), self.rfb2(x2), self.rfb3(x3), self.rfb4(x4)
         x = self.up1(x4, x3)
-        out1 = F.interpolate(self.side1(x), scale_factor=16, mode='bilinear')
+        out1 = F.interpolate(self.side1(x), scale_factor=16, mode="bilinear")
         x = self.up2(x, x2)
-        out2 = F.interpolate(self.side2(x), scale_factor=8, mode='bilinear')
+        out2 = F.interpolate(self.side2(x), scale_factor=8, mode="bilinear")
         x = self.up3(x, x1)
-        out = F.interpolate(self.head(x), scale_factor=4, mode='bilinear')
+        out = F.interpolate(self.head(x), scale_factor=4, mode="bilinear")
         return out, out1, out2
 
 
 if __name__ == "__main__":
-    input_size = (3, 1536, 1536)
+    input_size = (3, 960, 960)
     with torch.no_grad():
         model = SAM2UNet().cuda()
-        x = torch.randn(1, 3, 1536, 1536).cuda()
+        x = torch.randn(1, 3, 960, 960).cuda()
         out, out1, out2 = model(x)
         print(summary(model, input_size=input_size))
         print(out.shape, out1.shape, out2.shape)

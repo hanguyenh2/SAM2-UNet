@@ -5,32 +5,33 @@ import cv2
 import numpy as np
 import torchvision.transforms.functional as F
 from PIL import Image
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 
 
-class ToTensor(object):
+class ToTensor:
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
-        return {'image': F.to_tensor(image), 'label': F.to_tensor(label)}
+        image, label = data["image"], data["label"]
+        return {"image": F.to_tensor(image), "label": F.to_tensor(label)}
 
 
-class Resize(object):
+class Resize:
 
     def __init__(self, size):
         self.size = size
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
 
-        return {'image': F.resize(image, self.size),
-                'label': F.resize(label, self.size, interpolation=InterpolationMode.NEAREST)}
+        return {
+            "image": F.resize(image, self.size),
+            "label": F.resize(label, self.size, interpolation=InterpolationMode.NEAREST),
+        }
 
 
-class ResizeLongestSideAndPad(object):
+class ResizeLongestSideAndPad:
     """
     Resizes the image and label such that the longest side matches `size`,
     maintaining aspect ratio, and then pads the shorter side with zeros
@@ -49,7 +50,7 @@ class ResizeLongestSideAndPad(object):
         self.crop_range = (0.5, 1.0)
 
     def __call__(self, data: dict) -> dict:
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
 
         original_h, original_w = image.shape[-2:]
 
@@ -97,8 +98,8 @@ class ResizeLongestSideAndPad(object):
             x1 = random.randint(0, original_w - new_w)
 
             # Perform the crop using slicing
-            processed_image = image[..., y1:y1 + new_h, x1:x1 + new_w]
-            processed_label = label[..., y1:y1 + new_h, x1:x1 + new_w]
+            processed_image = image[..., y1: y1 + new_h, x1: x1 + new_w]
+            processed_label = label[..., y1: y1 + new_h, x1: x1 + new_w]
 
         # 3. Perform LongestMaxSize
         # 3.1. Get processed_image dimensions
@@ -113,11 +114,13 @@ class ResizeLongestSideAndPad(object):
 
         # 3.4. Resize image and label
         # For image: use bilinear or bicubic for quality
-        resized_image = F.resize(processed_image, [new_h, new_w],
-                                 interpolation=InterpolationMode.BILINEAR)
+        resized_image = F.resize(
+            processed_image, [new_h, new_w], interpolation=InterpolationMode.BILINEAR
+        )
         # For label (mask): use nearest neighbor to preserve discrete class values
-        resized_label = F.resize(processed_label, [new_h, new_w],
-                                 interpolation=InterpolationMode.NEAREST)
+        resized_label = F.resize(
+            processed_label, [new_h, new_w], interpolation=InterpolationMode.NEAREST
+        )
 
         # 3.5. Calculate padding amounts
         pad_h = self.size - new_h
@@ -137,37 +140,41 @@ class ResizeLongestSideAndPad(object):
         # For label: pad with 0 (background class)
         padded_label = F.pad(resized_label, padding, fill=0)  # fill=0 for background class
 
-        return {'image': padded_image, 'label': padded_label}
+        return {"image": padded_image, "label": padded_label}
 
 
-class Normalize(object):
+class Normalize:
     def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
         self.std = std
 
     def __call__(self, sample):
-        image, label = sample['image'], sample['label']
+        image, label = sample["image"], sample["label"]
         image = F.normalize(image, self.mean, self.std)
-        return {'image': image, 'label': label}
+        return {"image": image, "label": label}
 
 
-class RandomRotate(object):
+class RandomRotate:
     def __init__(self, p=0.75):
         self.p = p
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
         # Randomly choose rotation (0, 90, 180, 270 degrees)
         if random.random() < self.p:
             angle = random.choice([90, 180, 270])
-            return {'image': F.rotate(image, angle, interpolation=InterpolationMode.BILINEAR,
-                                      expand=False),
-                    'label': F.rotate(label, angle, interpolation=InterpolationMode.NEAREST,
-                                      expand=False)}
-        return {'image': image, 'label': label}
+            return {
+                "image": F.rotate(
+                    image, angle, interpolation=InterpolationMode.BILINEAR, expand=False
+                ),
+                "label": F.rotate(
+                    label, angle, interpolation=InterpolationMode.NEAREST, expand=False
+                ),
+            }
+        return {"image": image, "label": label}
 
 
-class ToGray(object):
+class ToGray:
     def __init__(self, p=0.5, num_output_channels=3):
         """
         Converts a 3-channel image to grayscale using F.rgb_to_grayscale.
@@ -180,17 +187,17 @@ class ToGray(object):
         self.num_output_channels = num_output_channels
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
 
         if random.random() < self.p:
             # F.rgb_to_grayscale expects a torch.Tensor (float, CHW)
             # Make sure this transform is applied AFTER ToTensor
             image = F.rgb_to_grayscale(image, num_output_channels=self.num_output_channels)
 
-        return {'image': image, 'label': label}
+        return {"image": image, "label": label}
 
 
-class ColorAugmentations(object):
+class ColorAugmentations:
     def __init__(self, p=0.8):
         """
         Applies a random color augmentation with a given probability.
@@ -207,7 +214,7 @@ class ColorAugmentations(object):
         self.gamma_range = (0.5, 1.5)  # For RandomGamma
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
 
         if random.random() < self.p:
             # Randomly choose one of the four color augmentations
@@ -226,7 +233,8 @@ class ColorAugmentations(object):
                 contrast_factor = random.uniform(*self.contrast_range)
                 saturation_factor = random.uniform(*self.saturation_range)
                 hue_factor = random.uniform(
-                    *self.hue_range)  # F.adjust_hue expects value from -0.5 to 0.5
+                    *self.hue_range
+                )  # F.adjust_hue expects value from -0.5 to 0.5
 
                 image = F.adjust_brightness(image, brightness_factor)
                 image = F.adjust_contrast(image, contrast_factor)
@@ -244,10 +252,10 @@ class ColorAugmentations(object):
                 gamma_value = random.uniform(*self.gamma_range)
                 image = F.adjust_gamma(image, gamma_value)
 
-        return {'image': image, 'label': label}
+        return {"image": image, "label": label}
 
 
-class GaussianBlur(object):
+class GaussianBlur:
     def __init__(self, p=0.2, blur_limit=(3, 5)):
         """
         Applies Gaussian blur with a given probability and random kernel size.
@@ -263,7 +271,7 @@ class GaussianBlur(object):
             raise ValueError("blur_limit must contain at least one odd integer for kernel_size.")
 
     def __call__(self, data):
-        image, label = data['image'], data['label']
+        image, label = data["image"], data["label"]
 
         if random.random() < self.p:
             # Randomly choose a kernel size from the allowed odd integers
@@ -274,37 +282,40 @@ class GaussianBlur(object):
             # For a square kernel, pass (kernel_size, kernel_size).
             image = F.gaussian_blur(image, kernel_size=[kernel_size, kernel_size])
 
-        return {'image': image, 'label': label}
+        return {"image": image, "label": label}
 
 
 class FullDataset(Dataset):
     def __init__(self, image_root: str, gt_root: str, size: int, mode: str = "train"):
-        self.images = [image_root + f for f in os.listdir(image_root) if
-                       f.endswith('.jpg') or f.endswith('.png')]
-        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
+        self.images = [
+            image_root + f
+            for f in os.listdir(image_root)
+            if f.endswith(".jpg") or f.endswith(".png")
+        ]
+        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith(".png")]
         self.images = sorted(self.images)
         self.gts = sorted(self.gts)
-        if mode == 'train':
-            self.transform = transforms.Compose([
-                ToTensor(),
-                ResizeLongestSideAndPad(size),
-                RandomRotate(),
-                ToGray(),
-                ColorAugmentations(),
-                GaussianBlur(),
-                Normalize()
-            ])
+        if mode == "train":
+            self.transform = transforms.Compose(
+                [
+                    ToTensor(),
+                    ResizeLongestSideAndPad(size),
+                    RandomRotate(),
+                    ToGray(),
+                    ColorAugmentations(),
+                    GaussianBlur(),
+                    Normalize(),
+                ]
+            )
         else:
-            self.transform = transforms.Compose([
-                ToTensor(),
-                ResizeLongestSideAndPad(size),
-                Normalize()
-            ])
+            self.transform = transforms.Compose(
+                [ToTensor(), ResizeLongestSideAndPad(size), Normalize()]
+            )
 
     def __getitem__(self, idx):
         image = self.rgb_loader(self.images[idx])
         label = self.binary_loader(self.gts[idx])
-        data = {'image': image, 'label': label}
+        data = {"image": image, "label": label}
         data = self.transform(data)
         return data
 
@@ -312,24 +323,24 @@ class FullDataset(Dataset):
         return len(self.images)
 
     def rgb_loader(self, path):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             img = Image.open(f)
-            return img.convert('RGB')
+            return img.convert("RGB")
 
     def binary_loader(self, path):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             img = Image.open(f)
-            return img.convert('L')
+            return img.convert("L")
 
 
-class ImageToTensor(object):
+class ImageToTensor:
 
     def __call__(self, data):
-        image = data['image']
-        return {'image': F.to_tensor(image)}
+        image = data["image"]
+        return {"image": F.to_tensor(image)}
 
 
-class LongestMaxSizeAndPad(object):
+class LongestMaxSizeAndPad:
     """
     Resizes the image and label such that the longest side matches `size`,
     maintaining aspect ratio, and then pads the shorter side with zeros
@@ -345,7 +356,7 @@ class LongestMaxSizeAndPad(object):
         self.size = size
 
     def __call__(self, data: dict) -> dict:
-        image = data['image']
+        image = data["image"]
         # Make sure image and label are PyTorch Tensors
         # This assumes image is (C, H, W) and label is (H, W) or (1, H, W)
         original_h, original_w = image.shape[-2:]  # Get H, W from (C, H, W)
@@ -377,32 +388,33 @@ class LongestMaxSizeAndPad(object):
         # For image: pad with 0 (black) or mean pixel value if normalized
         padded_image = F.pad(resized_image, padding, fill=0)  # fill=0 for black padding
 
-        return {'image': padded_image, 'padding': padding}
+        return {"image": padded_image, "padding": padding}
 
 
-class NormalizeImage(object):
+class NormalizeImage:
     def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
         self.mean = mean
         self.std = std
 
     def __call__(self, sample):
-        image, padding = sample['image'], sample['padding']
+        image, padding = sample["image"], sample["padding"]
         image = F.normalize(image, self.mean, self.std)
-        return {'image': image, 'padding': padding}
+        return {"image": image, "padding": padding}
 
 
 class TestDataset:
     def __init__(self, image_root: str, gt_root: str, size: int):
-        self.images = [image_root + f for f in os.listdir(image_root) if
-                       f.endswith('.jpg') or f.endswith('.png')]
-        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith('.png')]
+        self.images = [
+            image_root + f
+            for f in os.listdir(image_root)
+            if f.endswith(".jpg") or f.endswith(".png")
+        ]
+        self.gts = [gt_root + f for f in os.listdir(gt_root) if f.endswith(".png")]
         self.images = sorted(self.images)
         self.gts = sorted(self.gts)
-        self.transform = transforms.Compose([
-            ImageToTensor(),
-            LongestMaxSizeAndPad(size),
-            NormalizeImage()
-        ])
+        self.transform = transforms.Compose(
+            [ImageToTensor(), LongestMaxSizeAndPad(size), NormalizeImage()]
+        )
         self.size = len(self.images)
         self.index = 0
 
@@ -411,7 +423,7 @@ class TestDataset:
 
     def load_data(self):
         image = self.rgb_loader(self.images[self.index])
-        data = {'image': image}
+        data = {"image": image}
         data = self.transform(data)
         image = data["image"].unsqueeze(0)
         padding = data["padding"]
@@ -419,31 +431,31 @@ class TestDataset:
         gt = self.binary_loader(self.gts[self.index])
         gt = np.array(gt)
 
-        name = self.images[self.index].split('/')[-1]
+        name = self.images[self.index].split("/")[-1]
 
         self.index += 1
         return image, gt, name, padding
 
     def rgb_loader(self, path):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             img = Image.open(f)
-            return img.convert('RGB')
+            return img.convert("RGB")
 
     def binary_loader(self, path):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             img = Image.open(f)
-            return img.convert('L')
+            return img.convert("L")
 
 
 if __name__ == "__main__":
 
-    train_image_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/images/"
-    train_mask_path = "/Users/hhn21/Documents/h2/interior/wall_segmentation/data_20250727/wall_seg_crop/test/masks/"
+    train_image_path = "../wall_seg_crop/test/images/"
+    train_mask_path = "../wall_seg_crop/test/masks/"
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
     # 1. Load train data
-    dataset = FullDataset(train_image_path, train_mask_path, 1600, mode='train')
+    dataset = FullDataset(train_image_path, train_mask_path, 1600, mode="train")
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -451,8 +463,8 @@ if __name__ == "__main__":
         if i > 100:
             break
 
-        image = batch['image'][0]
-        label = batch['label'][0]
+        image = batch["image"][0]
+        label = batch["label"][0]
         # Denormalize the image
         for channel, m, s in zip(image, mean, std):
             channel.mul_(s).add_(m)

@@ -10,8 +10,9 @@ from shapely.validation import make_valid  # To handle invalid polygons if they 
 IOU_THRESHOLD = 0.95  # IoU threshold to consider a match
 
 
-def calculate_iou_from_polygons(poly1: Polygon, poly2: Polygon,
-                                area_threshold: float = 0.001) -> float:
+def calculate_iou_from_polygons(
+    poly1: Polygon, poly2: Polygon, area_threshold: float = 0.001
+) -> float:
     """
     Calculates IoU coefficient between two Shapely Polygon objects.
 
@@ -65,7 +66,7 @@ def opencv_contour_to_shapely_polygon(contour: np.ndarray) -> Polygon:
         if not poly.is_valid:
             poly = make_valid(poly)  # Attempt to fix invalid polygons
         return poly
-    except Exception as e:
+    except Exception:
         # print(f"Warning: Could not create Shapely Polygon from contour. Error: {e}")
         return Polygon()  # Return an empty polygon on error
 
@@ -97,11 +98,11 @@ def evaluate_contours(
     num_gt = len(gt_polygons)
     num_pred = len(pred_polygons)
     if num_gt == 0 and num_pred == 0:
-        return {'TP': 0, 'FP': 0, 'FN': 0}
+        return {"TP": 0, "FP": 0, "FN": 0}
     if num_gt == 0 and num_pred > 0:
-        return {'TP': 0, 'FP': num_pred, 'FN': 0}
+        return {"TP": 0, "FP": num_pred, "FN": 0}
     if num_gt > 0 and num_pred == 0:
-        return {'TP': 0, 'FP': 0, 'FN': num_gt}
+        return {"TP": 0, "FP": 0, "FN": num_gt}
 
     # 4. Initialize lists to track matches
     # Boolean arrays to mark if a GT or Pred contour has been matched
@@ -138,9 +139,9 @@ def evaluate_contours(
     FN = sum(1 for matched in gt_matched if not matched)
 
     return {
-        'TP': TP,
-        'FP': FP,
-        'FN': FN,
+        "TP": TP,
+        "FP": FP,
+        "FN": FN,
     }
 
 
@@ -194,14 +195,19 @@ def calculate_mask_metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
 
 # 1. Define args
 parser = argparse.ArgumentParser()
-parser.add_argument("--pred_path", type=str, required=True,
-                    help="path to the prediction results")
-parser.add_argument("--gt_path", type=str,
-                    default="../wall_seg_crop/data_test/masks/",
-                    help="path to the ground truth masks")
-parser.add_argument("--masks_windoor_path", type=str,
-                    default="../wall_seg_crop/data_test/masks_windoor/",
-                    help="path to the windoor masks")
+parser.add_argument("--pred_path", type=str, required=True, help="path to the prediction results")
+parser.add_argument(
+    "--gt_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks/",
+    help="path to the ground truth masks",
+)
+parser.add_argument(
+    "--masks_windoor_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks_windoor/",
+    help="path to the windoor masks",
+)
 args = parser.parse_args()
 
 # 2. Define FmeasureV2
@@ -228,8 +234,8 @@ for i, mask_name in enumerate(mask_name_list):
     #     continue
     # 4.1. Get file info
     mask_path = os.path.join(mask_root, mask_name)
-    pred_path = os.path.join(pred_root, mask_name[:-4] + '.png')
-    mask_windoor_path = os.path.join(mask_windoor_root, mask_name[:-4] + '.png')
+    pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
+    mask_windoor_path = os.path.join(mask_windoor_root, mask_name[:-4] + ".png")
     # 4.2. Read images
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
     pred = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
@@ -252,22 +258,24 @@ for i, mask_name in enumerate(mask_name_list):
     print(f"{mask_metrics['mDice']:.3f}\t{mask_metrics['mIoU']:.3f}")
 
     # 4.4. Detection Evaluation using contours
-    contour_eval_results = evaluate_contours(gt_contours=gt_contours,
-                                             pred_contours=pred_contours)
+    contour_eval_results = evaluate_contours(gt_contours=gt_contours, pred_contours=pred_contours)
     # 4.5. Add evaluation results
     # True Positives
-    all_tps += contour_eval_results['TP']
+    all_tps += contour_eval_results["TP"]
     # False Positives
-    all_fps += contour_eval_results['FP']
+    all_fps += contour_eval_results["FP"]
     # False Negatives
-    all_fns += contour_eval_results['FN']
+    all_fns += contour_eval_results["FN"]
     # 4.6
 
 # After the loop, calculate overall metrics:
 overall_precision = all_tps / (all_tps + all_fps) if (all_tps + all_fps) > 0 else 0.0
 overall_recall = all_tps / (all_tps + all_fns) if (all_tps + all_fns) > 0 else 0.0
-overall_f1 = (2 * overall_precision * overall_recall) / (overall_precision + overall_recall) \
-    if (overall_precision + overall_recall) > 0 else 0.0
+overall_f1 = (
+    (2 * overall_precision * overall_recall) / (overall_precision + overall_recall)
+    if (overall_precision + overall_recall) > 0
+    else 0.0
+)
 
 fmv2 = FMv2.get_results()
 
@@ -277,8 +285,8 @@ curr_results = {
 }
 
 print("\nEvaluation results:")
-print("Precision:   ", format(overall_precision, '.3f'))
-print("Recall:      ", format(overall_recall, '.3f'))
-print("F1:          ", format(overall_f1, '.3f'))
-print("mDice:       ", format(curr_results['meandice'], '.3f'))
-print("mIoU:        ", format(curr_results['meaniou'], '.3f'))
+print("Precision:   ", format(overall_precision, ".3f"))
+print("Recall:      ", format(overall_recall, ".3f"))
+print("F1:          ", format(overall_f1, ".3f"))
+print("mDice:       ", format(curr_results["meandice"], ".3f"))
+print("mIoU:        ", format(curr_results["meaniou"], ".3f"))

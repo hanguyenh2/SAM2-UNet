@@ -43,30 +43,14 @@ def get_image_filenames_in_directory(directory_path: str) -> list[str]:
 def standardize_text(text: str) -> str:
     """Standardize the text to simplify post process and unify final result."""
     text = unicodedata.normalize("NFKC", text)
-    text = text.replace(" ", "")
-    text = text.replace(";", "")
+    text = text.strip().replace(" ", "")
     text = text.replace(",", "")
-    text = text.replace("C", "")
-    text = text.replace("D", "")
-    text = text.replace("G", "")
-    text = text.replace("W", "")
-    text = text.replace("H", "")
-    text = text.replace("=", "")
-    text = text.replace("有", "")
-    text = text.replace("効", "")
-    text = text.replace("效", "")
-    text = text.replace("m", "")
-    # Filter . from the first 3 characters of the text
-    if len(text) > 3:
-        filtered_text = text[:3].replace(".", "")
-        text = filtered_text + text[3:]
     return text
 
 
 def get_ppocr_results_ltrb(
     img_path: str,
     ocr: PaddleOCR,
-    float_only: bool,
     is_horizontal: bool
 ) -> list[dict]:
     """
@@ -75,7 +59,6 @@ def get_ppocr_results_ltrb(
     Args:
         img_path (str): The file path to the image for OCR.
         ocr (PaddleOCR): PaddleOCR model.
-        float_only (bool): Keep only float text if True.
         is_horizontal (bool): Detect only horizontal if True.
 
     Returns:
@@ -99,17 +82,8 @@ def get_ppocr_results_ltrb(
         for box_points, text, score in zip(
             result["dt_polys"], result["rec_texts"], result["rec_scores"]
         ):  # 2.1. Convert text to float
+            text = standardize_text(text)
             print("==")
-            print(text)
-            if float_only:
-                try:
-                    text = int(standardize_text(text))
-                except ValueError:
-                    continue
-                # Make sure float value is from 10 to 20000
-                if text < 10 or text > 20000:
-                    continue
-
             print(text)
             # 2.2. Convert the 4-point quad to the LTRB (Left-Top, Right-Bottom) format
             # 2.2.1. Extract x and y coordinates
@@ -155,8 +129,8 @@ def has_overlapped_center(
     x1_2, y1_2, x2_2, y2_2 = ltrb_2
     x_center_2 = (x1_2 + x2_2) / 2
     y_center_2 = (y1_2 + y2_2) / 2
-    return (x1_2 < x_center_1 < x2_2 and y1_2 < y_center_1 < y2_2
-            and x1_1 < x_center_2 < x2_1 and y1_1 < y_center_2 < y2_1)
+    return ((x1_2 < x_center_1 < x2_2 and y1_2 < y_center_1 < y2_2)
+            or (x1_1 < x_center_2 < x2_1 and y1_1 < y_center_2 < y2_1))
 
 
 def filter_overlapped_results_using_score(
@@ -214,10 +188,10 @@ for input_dir in input_dirs:
 
         # 2.Detect text
         width_results = get_ppocr_results_ltrb(
-            image_path, ocr, float_only=True, is_horizontal=True
+            image_path, ocr, is_horizontal=True
         )
         height_results = get_ppocr_results_ltrb(
-            image_path, ocr, float_only=True, is_horizontal=False
+            image_path, ocr, is_horizontal=False
         )
 
         # # 3. Filter overlapped results
@@ -233,5 +207,5 @@ for input_dir in input_dirs:
             ):
                 for result in results:
                     x1, y1, x2, y2 = map(int, result["ltrb"])
-                    text = int(result["text"])
+                    text = result["text"]
                     gt_file.write(f"{x1},{y1},{x2},{y2},{text},{gt_type}\n")
