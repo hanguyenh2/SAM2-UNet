@@ -43,7 +43,6 @@ def get_image_filenames_in_directory(directory_path: str) -> list[str]:
 def standardize_text(text: str) -> str:
     """Standardize the text to simplify post process and unify final result."""
     text = unicodedata.normalize("NFKC", text)
-    text = text.strip().replace(" ", "")
     text = text.replace(",", "")
     return text
 
@@ -156,7 +155,7 @@ def filter_overlapped_results_using_score(
 
 # Load PP-OCRv5 model
 ocr = PaddleOCR(
-    text_detection_model_name="PP-OCRv5_server_det",
+    text_detection_model_name="PP-OCRv5_mobile_det",
     text_recognition_model_name="PP-OCRv5_server_rec",
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
@@ -164,8 +163,8 @@ ocr = PaddleOCR(
 )
 
 input_dirs = [
-    "../real_data_box/test",
-    "../real_data_box/train",
+    "../20251029_glass_detection/test",
+    # "../20251029_glass_detection/train",
 ]
 
 for input_dir in input_dirs:
