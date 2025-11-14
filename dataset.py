@@ -449,13 +449,13 @@ class TestDataset:
 
 if __name__ == "__main__":
 
-    train_image_path = "../wall_seg_crop/test/images/"
-    train_mask_path = "../wall_seg_crop/test/masks/"
+    train_image_path = "../boundary_seg_crop/data_test/images/"
+    train_mask_path = "../boundary_seg_crop/data_test/masks/"
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
     # 1. Load train data
-    dataset = FullDataset(train_image_path, train_mask_path, 1600, mode="train")
+    dataset = FullDataset(train_image_path, train_mask_path, 1536, mode="train")
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]

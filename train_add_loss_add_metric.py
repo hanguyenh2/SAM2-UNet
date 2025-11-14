@@ -188,31 +188,31 @@ parser.add_argument(
 parser.add_argument(
     "--train_image_path",
     type=str,
-    default="../wall_seg_crop/data_train/images/",
+    default="../boundary_seg_crop/data_train/images/",
     help="path to the image that used to train the model",
 )
 parser.add_argument(
     "--train_mask_path",
     type=str,
-    default="../wall_seg_crop/data_train/masks/",
+    default="../boundary_seg_crop/data_train/masks/",
     help="path to the mask file for training",
 )
 parser.add_argument(
     "--test_image_path",
     type=str,
-    default="../wall_seg_crop/data_test/images/",
+    default="../boundary_seg_crop/data_test/images/",
     help="path to the image that used to evaluate the model",
 )
 parser.add_argument(
     "--test_gt_path",
     type=str,
-    default="../wall_seg_crop/data_test/masks/",
+    default="../boundary_seg_crop/data_test/masks/",
     help="path to the mask file for evaluating",
 )
 parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=6, type=int)
-parser.add_argument("--size", default=960, type=int)
+parser.add_argument("--size", default=1536, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=20, type=int)
 parser.add_argument("--base_score", default=0.75, type=float)
