@@ -199,13 +199,13 @@ parser.add_argument("--pred_path", type=str, required=True, help="path to the pr
 parser.add_argument(
     "--gt_path",
     type=str,
-    default="../boundary_seg_crop/data_test/masks/",
+    default="../wall_seg_crop/data_test/masks/",
     help="path to the ground truth masks",
 )
 parser.add_argument(
     "--masks_windoor_path",
     type=str,
-    default="../boundary_seg_crop/data_test/masks_windoor/",
+    default="../wall_seg_crop/data_test/masks_windoor/",
     help="path to the windoor masks",
 )
 args = parser.parse_args()

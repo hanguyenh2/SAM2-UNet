@@ -11,8 +11,8 @@ from scipy import ndimage
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-from SAM2UNet import SAM2UNet
 from dataset import FullDataset, TestDataset
+from SAM2UNet import SAM2UNet
 
 
 def compute_boundary_loss(pred, mask):
@@ -37,7 +37,7 @@ def compute_boundary_loss(pred, mask):
 
         # Apply boundary-weighted BCE
         pred_sigmoid = torch.sigmoid(pred[i, 0])
-        boundary_bce = F.binary_cross_entropy(pred_sigmoid, mask[i, 0].float(), reduction='none')
+        boundary_bce = F.binary_cross_entropy(pred_sigmoid, mask[i, 0].float(), reduction="none")
         weighted_boundary_loss = (boundary_bce * boundary_weight).mean()
         boundary_loss += weighted_boundary_loss
 
@@ -53,10 +53,10 @@ def focal_loss(pred, mask, alpha=0.25, gamma=2.0):
 
     # Compute focal weight
     pt = torch.where(mask == 1, pred_sigmoid, 1 - pred_sigmoid)
-    focal_weight = alpha * (1 - pt)**gamma
+    focal_weight = alpha * (1 - pt) ** gamma
 
     # Compute focal loss
-    bce_loss = F.binary_cross_entropy_with_logits(pred, mask, reduction='none')
+    bce_loss = F.binary_cross_entropy_with_logits(pred, mask, reduction="none")
     focal = focal_weight * bce_loss
 
     return focal.mean()
@@ -95,10 +95,10 @@ def enhanced_structure_loss(pred, mask, boundary_weight=0.3, focal_weight=0.5):
     total_loss = original_loss + boundary_weight * boundary_loss + focal_weight * focal_loss_val
 
     return total_loss, {
-        'original_loss': original_loss.item(),
-        'boundary_loss': boundary_loss.item(),
-        'focal_loss': focal_loss_val.item(),
-        'total_loss': total_loss.item()
+        "original_loss": original_loss.item(),
+        "boundary_loss": boundary_loss.item(),
+        "focal_loss": focal_loss_val.item(),
+        "total_loss": total_loss.item(),
     }
 
 
@@ -119,7 +119,7 @@ def gpu_boundary_loss(pred, mask, sigma=5.0):
 
     # Apply weighted BCE
     pred_sigmoid = torch.sigmoid(pred)
-    bce_loss = F.binary_cross_entropy(pred_sigmoid, mask.float(), reduction='none')
+    bce_loss = F.binary_cross_entropy(pred_sigmoid, mask.float(), reduction="none")
     weighted_loss = (bce_loss * boundary_weight).mean()
 
     return weighted_loss
@@ -151,10 +151,10 @@ def enhanced_structure_loss_gpu(pred, mask, boundary_weight=0.3, focal_weight=0.
     total_loss = original_loss + boundary_weight * boundary_loss + focal_weight * focal_loss_val
 
     return total_loss, {
-        'original_loss': original_loss.item(),
-        'boundary_loss': boundary_loss.item(),
-        'focal_loss': focal_loss_val.item(),
-        'total_loss': total_loss.item()
+        "original_loss": original_loss.item(),
+        "boundary_loss": boundary_loss.item(),
+        "focal_loss": focal_loss_val.item(),
+        "total_loss": total_loss.item(),
     }
 
 
@@ -180,39 +180,38 @@ def post_process_predictions(pred_tensor, min_area=50):
 
 
 parser = argparse.ArgumentParser("SAM2-UNet")
-parser.add_argument("--save_path", type=str, required=True,
-                    help="path to store the checkpoint")
+parser.add_argument("--save_path", type=str, required=True, help="path to store the checkpoint")
 parser.add_argument(
     "--checkpoint", type=str, default="", help="path to the checkpoint of sam2-unet"
 )
 parser.add_argument(
     "--train_image_path",
     type=str,
-    default="../boundary_seg_crop/data_train/images/",
+    default="../wall_seg_crop/data_train/images/",
     help="path to the image that used to train the model",
 )
 parser.add_argument(
     "--train_mask_path",
     type=str,
-    default="../boundary_seg_crop/data_train/masks/",
+    default="../wall_seg_crop/data_train/masks/",
     help="path to the mask file for training",
 )
 parser.add_argument(
     "--test_image_path",
     type=str,
-    default="../boundary_seg_crop/data_test/images/",
+    default="../wall_seg_crop/data_test/images/",
     help="path to the image that used to evaluate the model",
 )
 parser.add_argument(
     "--test_gt_path",
     type=str,
-    default="../boundary_seg_crop/data_test/masks/",
+    default="../wall_seg_crop/data_test/masks/",
     help="path to the mask file for evaluating",
 )
 parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
 parser.add_argument("--batch_size", default=6, type=int)
-parser.add_argument("--size", default=1536, type=int)
+parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=20, type=int)
 parser.add_argument("--base_score", default=0.75, type=float)
@@ -220,8 +219,8 @@ parser.add_argument("--base_score", default=0.75, type=float)
 # NEW: Enhanced loss parameters
 parser.add_argument("--boundary_weight", default=0.3, type=float, help="Weight for boundary loss")
 parser.add_argument("--focal_weight", default=0.5, type=float, help="Weight for focal loss")
-parser.add_argument("--use_enhanced_loss", action='store_true', help="Use enhanced loss function")
-parser.add_argument("--post_process", action='store_true', help="Apply post-processing")
+parser.add_argument("--use_enhanced_loss", action="store_true", help="Use enhanced loss function")
+parser.add_argument("--post_process", action="store_true", help="Apply post-processing")
 
 args = parser.parse_args()
 
@@ -257,34 +256,34 @@ def create_visualization(image, gt, pred, pred_processed, name, save_path, check
         img_display = (img_display * 255).astype(np.uint8)
 
     axes[0].imshow(img_display)
-    axes[0].set_title('Original Image')
-    axes[0].axis('off')
+    axes[0].set_title("Original Image")
+    axes[0].axis("off")
 
     # Ground truth
-    axes[1].imshow(gt, cmap='gray')
-    axes[1].set_title('Ground Truth')
-    axes[1].axis('off')
+    axes[1].imshow(gt, cmap="gray")
+    axes[1].set_title("Ground Truth")
+    axes[1].axis("off")
 
     # Original prediction
-    axes[2].imshow(pred, cmap='gray')
-    axes[2].set_title('Prediction')
-    axes[2].axis('off')
+    axes[2].imshow(pred, cmap="gray")
+    axes[2].set_title("Prediction")
+    axes[2].axis("off")
 
     # Post-processed prediction
     if pred_processed is not None:
-        axes[3].imshow(pred_processed, cmap='gray')
-        axes[3].set_title('Post-processed')
+        axes[3].imshow(pred_processed, cmap="gray")
+        axes[3].set_title("Post-processed")
     else:
-        axes[3].imshow(pred, cmap='gray')
-        axes[3].set_title('Prediction (no post-proc)')
-    axes[3].axis('off')
+        axes[3].imshow(pred, cmap="gray")
+        axes[3].set_title("Prediction (no post-proc)")
+    axes[3].axis("off")
 
     # Create filename
     image_name_clean = os.path.splitext(name)[0]  # Remove extension
     filename = f"{checkpoint_name}_{image_name_clean}.png"
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_path, filename), dpi=150, bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, filename), dpi=150, bbox_inches="tight")
     plt.close()
 
 
@@ -300,38 +299,39 @@ def save_loss_metrics(metrics_history, save_path, epoch):
     epochs = list(range(len(metrics_history)))
 
     # Extract metrics
-    original_losses = [m['original_loss'] for m in metrics_history]
-    boundary_losses = [m['boundary_loss'] for m in metrics_history]
-    focal_losses = [m['focal_loss'] for m in metrics_history]
-    total_losses = [m['total_loss'] for m in metrics_history]
+    original_losses = [m["original_loss"] for m in metrics_history]
+    boundary_losses = [m["boundary_loss"] for m in metrics_history]
+    focal_losses = [m["focal_loss"] for m in metrics_history]
+    total_losses = [m["total_loss"] for m in metrics_history]
 
-    axes[0, 0].plot(epochs, original_losses, label='Original Loss')
-    axes[0, 0].set_title('Original Structure Loss')
-    axes[0, 0].set_xlabel('Epoch')
-    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].plot(epochs, original_losses, label="Original Loss")
+    axes[0, 0].set_title("Original Structure Loss")
+    axes[0, 0].set_xlabel("Epoch")
+    axes[0, 0].set_ylabel("Loss")
     axes[0, 0].grid(True)
 
-    axes[0, 1].plot(epochs, boundary_losses, label='Boundary Loss', color='red')
-    axes[0, 1].set_title('Boundary Loss Component')
-    axes[0, 1].set_xlabel('Epoch')
-    axes[0, 1].set_ylabel('Loss')
+    axes[0, 1].plot(epochs, boundary_losses, label="Boundary Loss", color="red")
+    axes[0, 1].set_title("Boundary Loss Component")
+    axes[0, 1].set_xlabel("Epoch")
+    axes[0, 1].set_ylabel("Loss")
     axes[0, 1].grid(True)
 
-    axes[1, 0].plot(epochs, focal_losses, label='Focal Loss', color='green')
-    axes[1, 0].set_title('Focal Loss Component')
-    axes[1, 0].set_xlabel('Epoch')
-    axes[1, 0].set_ylabel('Loss')
+    axes[1, 0].plot(epochs, focal_losses, label="Focal Loss", color="green")
+    axes[1, 0].set_title("Focal Loss Component")
+    axes[1, 0].set_xlabel("Epoch")
+    axes[1, 0].set_ylabel("Loss")
     axes[1, 0].grid(True)
 
-    axes[1, 1].plot(epochs, total_losses, label='Total Enhanced Loss', color='purple')
-    axes[1, 1].set_title('Total Enhanced Loss')
-    axes[1, 1].set_xlabel('Epoch')
-    axes[1, 1].set_ylabel('Loss')
+    axes[1, 1].plot(epochs, total_losses, label="Total Enhanced Loss", color="purple")
+    axes[1, 1].set_title("Total Enhanced Loss")
+    axes[1, 1].set_xlabel("Epoch")
+    axes[1, 1].set_ylabel("Loss")
     axes[1, 1].grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_path, f'loss_evolution_epoch_{epoch}.png'), dpi=150,
-                bbox_inches='tight')
+    plt.savefig(
+        os.path.join(save_path, f"loss_evolution_epoch_{epoch}.png"), dpi=150, bbox_inches="tight"
+    )
     plt.close()
 
 
@@ -393,12 +393,15 @@ def main(args):
 
             # ENHANCED LOSS INTEGRATION
             if USE_ENHANCED_LOSS:
-                loss0, metrics0 = enhanced_structure_loss_gpu(pred0, target, args.boundary_weight,
-                                                              args.focal_weight)
-                loss1, metrics1 = enhanced_structure_loss_gpu(pred1, target, args.boundary_weight,
-                                                              args.focal_weight)
-                loss2, metrics2 = enhanced_structure_loss_gpu(pred2, target, args.boundary_weight,
-                                                              args.focal_weight)
+                loss0, metrics0 = enhanced_structure_loss_gpu(
+                    pred0, target, args.boundary_weight, args.focal_weight
+                )
+                loss1, metrics1 = enhanced_structure_loss_gpu(
+                    pred1, target, args.boundary_weight, args.focal_weight
+                )
+                loss2, metrics2 = enhanced_structure_loss_gpu(
+                    pred2, target, args.boundary_weight, args.focal_weight
+                )
                 loss = loss0 + loss1 + loss2
 
                 # Store metrics for this batch
@@ -406,10 +409,12 @@ def main(args):
 
                 # Optional: Log detailed metrics every 10 iterations
                 if i % 10 == 0:
-                    print(f"epoch-{epoch + 1}-{i + 1}: Enhanced loss:{loss.item():.4f} "
-                          f"(Orig: {metrics0['original_loss']:.4f}, "
-                          f"Boundary: {metrics0['boundary_loss']:.4f}, "
-                          f"Focal: {metrics0['focal_loss']:.4f})")
+                    print(
+                        f"epoch-{epoch + 1}-{i + 1}: Enhanced loss:{loss.item():.4f} "
+                        f"(Orig: {metrics0['original_loss']:.4f}, "
+                        f"Boundary: {metrics0['boundary_loss']:.4f}, "
+                        f"Focal: {metrics0['focal_loss']:.4f})"
+                    )
             else:
                 # Original loss for comparison
                 loss0 = structure_loss(pred0, target)
@@ -429,10 +434,10 @@ def main(args):
         # NEW: Average epoch metrics for enhanced loss
         if USE_ENHANCED_LOSS and epoch_metrics:
             avg_metrics = {
-                'original_loss': np.mean([m['original_loss'] for m in epoch_metrics]),
-                'boundary_loss': np.mean([m['boundary_loss'] for m in epoch_metrics]),
-                'focal_loss': np.mean([m['focal_loss'] for m in epoch_metrics]),
-                'total_loss': np.mean([m['total_loss'] for m in epoch_metrics])
+                "original_loss": np.mean([m["original_loss"] for m in epoch_metrics]),
+                "boundary_loss": np.mean([m["boundary_loss"] for m in epoch_metrics]),
+                "focal_loss": np.mean([m["focal_loss"] for m in epoch_metrics]),
+                "total_loss": np.mean([m["total_loss"] for m in epoch_metrics]),
             }
             metrics_history.append(avg_metrics)
 
@@ -464,8 +469,8 @@ def main(args):
                 res_padded, _, _ = model(image)
                 pad_left, pad_top, pad_right, pad_bottom = padding
                 res = res_padded[
-                      :, :, pad_top: args.size - pad_bottom, pad_left: args.size - pad_right
-                      ]
+                    :, :, pad_top : args.size - pad_bottom, pad_left : args.size - pad_right
+                ]
                 res = F.interpolate(res, size=gt.shape, mode="bilinear", align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()

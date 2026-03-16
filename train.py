@@ -9,44 +9,58 @@ import torch.optim as opt
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-from SAM2UNet import SAM2UNet
 from dataset import FullDataset, TestDataset
+from SAM2UNet import SAM2UNet
 
 parser = argparse.ArgumentParser("SAM2-UNet")
-parser.add_argument('--save_path', type=str, required=True,
-                    help="path to store the checkpoint")
-parser.add_argument("--hiera_path", type=str,
-                    default="",
-                    help="path to the sam2 pretrained hiera")
-parser.add_argument("--checkpoint", type=str,
-                    default="",
-                    help="path to the checkpoint of sam2-unet")
-parser.add_argument("--train_image_path", type=str,
-                    default="../boundary_seg_crop/data_train/images/",
-                    help="path to the image that used to train the model")
-parser.add_argument("--train_mask_path", type=str,
-                    default="../boundary_seg_crop/data_train/masks/",
-                    help="path to the mask file for training")
-parser.add_argument("--test_image_path", type=str,
-                    default="../boundary_seg_crop/data_test/images/",
-                    help="path to the image that used to evaluate the model")
-parser.add_argument("--test_gt_path", type=str,
-                    default="../boundary_seg_crop/data_test/masks/",
-                    help="path to the mask file for evaluating")
+parser.add_argument("--save_path", type=str, required=True, help="path to store the checkpoint")
+parser.add_argument(
+    "--hiera_path",
+    type=str,
+    default="../sam2_hiera_small.pt",
+    help="path to the sam2 pretrained hiera",
+)
+parser.add_argument(
+    "--checkpoint", type=str, default="", help="path to the checkpoint of sam2-unet"
+)
+parser.add_argument(
+    "--train_image_path",
+    type=str,
+    default="../wall_seg_crop/data_train/images/",
+    help="path to the image that used to train the model",
+)
+parser.add_argument(
+    "--train_mask_path",
+    type=str,
+    default="../wall_seg_crop/data_train/masks/",
+    help="path to the mask file for training",
+)
+parser.add_argument(
+    "--test_image_path",
+    type=str,
+    default="../wall_seg_crop/data_test/images/",
+    help="path to the image that used to evaluate the model",
+)
+parser.add_argument(
+    "--test_gt_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks/",
+    help="path to the mask file for evaluating",
+)
 parser.add_argument("--epoch", type=int, default=1000, help="training epochs")
 parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-parser.add_argument("--batch_size", default=6, type=int)
-parser.add_argument("--size", default=1536, type=int)
+parser.add_argument("--batch_size", default=16, type=int)
+parser.add_argument("--size", default=960, type=int)
 parser.add_argument("--weight_decay", default=5e-4, type=float)
 parser.add_argument("--save_interval", default=10, type=int)
-parser.add_argument("--base_mean_iou", default=0.85, type=float)
-parser.add_argument("--auto_save_iou", default=0.9, type=float)
+parser.add_argument("--base_mean_iou", default=0.83, type=float)
+parser.add_argument("--auto_save_iou", default=0.85, type=float)
 args = parser.parse_args()
 
 
 def structure_loss(pred, mask):
     weit = 1 + 10 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
-    wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce='none')
+    wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce="none")
     wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
     pred = torch.sigmoid(pred)
     inter = ((pred * mask) * weit).sum(dim=(2, 3))
@@ -61,7 +75,7 @@ sample_gray = dict(with_adaptive=True, with_dynamic=True)
 
 def main(args):
     # 1. Load train data
-    dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode='train')
+    dataset = FullDataset(args.train_image_path, args.train_mask_path, args.size, mode="train")
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     # 2. Load test data
     test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
@@ -75,8 +89,11 @@ def main(args):
     if len(args.checkpoint) > 0:
         model.load_state_dict(torch.load(args.checkpoint), strict=True)
     # 5. Set optimizer
-    optim = opt.AdamW([{"params": model.parameters(), "initia_lr": args.lr}], lr=args.lr,
-                      weight_decay=args.weight_decay)
+    optim = opt.AdamW(
+        [{"params": model.parameters(), "initia_lr": args.lr}],
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+    )
     # 6. Set scheduler
     scheduler = CosineAnnealingLR(optim, args.epoch, eta_min=1.0e-7)
 
@@ -91,8 +108,8 @@ def main(args):
         print("Training:")
         model.train()  # Set model to training mode
         for i, batch in enumerate(dataloader):
-            x = batch['image']
-            target = batch['label']
+            x = batch["image"]
+            target = batch["label"]
             x = x.to(device)
             target = target.to(device)
             optim.zero_grad()
@@ -125,9 +142,10 @@ def main(args):
                 image = image.to(device)
                 res_padded, _, _ = model(image)
                 pad_left, pad_top, pad_right, pad_bottom = padding
-                res = res_padded[:, :, pad_top: args.size - pad_bottom,
-                      pad_left: args.size - pad_right]
-                res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)
+                res = res_padded[
+                    :, :, pad_top : args.size - pad_bottom, pad_left : args.size - pad_right
+                ]
+                res = F.interpolate(res, size=gt.shape, mode="bilinear", align_corners=False)
                 res = res.sigmoid().data.cpu()
                 res = res.numpy().squeeze()
                 res = (res - res.min()) / (res.max() - res.min() + 1e-8)
@@ -145,26 +163,34 @@ def main(args):
         fmv2 = FMv2.get_results()
         mean_iou = fmv2["iou"]["dynamic"].mean()
         print(
-            "\nepoch-{}: loss: {} mIoU: {} best_mIoU: {}\n".format(epoch + 1, epoch_loss, mean_iou,
-                                                                   base_mean_iou))
+            "\nepoch-{}: loss: {} mIoU: {} best_mIoU: {}\n".format(
+                epoch + 1, epoch_loss, mean_iou, base_mean_iou
+            )
+        )
 
         # 7.3. Save checkpoint
         if mean_iou > base_mean_iou:
             base_mean_iou = mean_iou
-            save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
+            save_model_path = os.path.join(
+                args.save_path,
+                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth",
+            )
             torch.save(model.state_dict(), save_model_path)
-            print(f'Saving Snapshot best:', save_model_path)
+            print("Saving Snapshot best:", save_model_path)
         elif mean_iou > auto_save_iou:
-            save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
+            save_model_path = os.path.join(
+                args.save_path,
+                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth",
+            )
             torch.save(model.state_dict(), save_model_path)
-            print(f'Auto Saving Good Snapshot:', save_model_path)
+            print("Auto Saving Good Snapshot:", save_model_path)
         elif (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
-            save_model_path = os.path.join(args.save_path,
-                                           f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth")
+            save_model_path = os.path.join(
+                args.save_path,
+                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth",
+            )
             torch.save(model.state_dict(), save_model_path)
-            print('Saving Snapshot:', save_model_path)
+            print("Saving Snapshot:", save_model_path)
 
 
 # def seed_torch(seed=1024):

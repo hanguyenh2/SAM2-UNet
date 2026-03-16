@@ -6,35 +6,44 @@ import cv2
 import imageio
 import numpy as np
 import onnxruntime
-import torch
 
 from dataset import TestDataset
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, required=True,
-                    help="path to the checkpoint of sam2-unet")
-parser.add_argument("--save_path", type=str, required=True,
-                    help="path to save the predicted masks")
-parser.add_argument("--test_image_path", type=str,
-                    default="../boundary_seg_crop/data_test/images/",
-                    help="path to the image files for testing")
-parser.add_argument("--test_gt_path", type=str,
-                    default="../boundary_seg_crop/data_test/masks/",
-                    help="path to the mask files for testing")
-parser.add_argument("--size", default=1536, type=int)
-parser.add_argument("--use_cpu", action="store_true", default=False,
-                    help="inference using CPU")
+parser.add_argument(
+    "--checkpoint", type=str, required=True, help="path to the checkpoint of sam2-unet"
+)
+parser.add_argument(
+    "--save_path", type=str, required=True, help="path to save the predicted masks"
+)
+parser.add_argument(
+    "--test_image_path",
+    type=str,
+    default="../wall_seg_crop/data_test/images/",
+    help="path to the image files for testing",
+)
+parser.add_argument(
+    "--test_gt_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks/",
+    help="path to the mask files for testing",
+)
+parser.add_argument("--size", default=960, type=int)
+parser.add_argument("--use_cpu", action="store_true", default=False, help="inference using CPU")
 args = parser.parse_args()
 
 # Determine the device for ONNX Runtime
 # Check if CUDA is available in PyTorch, then map to ONNX Runtime providers
-if torch.cuda.is_available() and not args.use_cpu:
-    # Attempt to use CUDAExecutionProvider, fallback to CPU if CUDA is not fully set up for ONNX Runtime
-    providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-    print("CUDA is available. Attempting to use GPU for ONNX Runtime.")
-else:
-    providers = ['CPUExecutionProvider']
-    print("CUDA is not available. Using CPU for ONNX Runtime.")
+providers = ["CPUExecutionProvider"]
+try:
+    import torch
+
+    if torch.cuda.is_available() and not args.use_cpu:
+        # Attempt to use CUDAExecutionProvider, fallback to CPU if CUDA is not fully set up for ONNX Runtime
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        print("CUDA is available. Attempting to use GPU for ONNX Runtime.")
+except Exception:
+    print("ModuleNotFoundError: No module named 'torch'")
 
 test_loader = TestDataset(args.test_image_path, args.test_gt_path, args.size)
 
@@ -71,7 +80,7 @@ for i in range(test_loader.size):
 
     # Post-processing: ONNX output 'res' is a numpy array
     pad_left, pad_top, pad_right, pad_bottom = padding
-    res = res_padded[:, :, pad_top: args.size - pad_bottom, pad_left: args.size - pad_right]
+    res = res_padded[:, :, pad_top : args.size - pad_bottom, pad_left : args.size - pad_right]
     res_sigmoid = 1 / (1 + np.exp(-res))
     res = np.squeeze(res_sigmoid)
     res = cv2.resize(res, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)

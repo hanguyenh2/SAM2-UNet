@@ -98,8 +98,8 @@ class ResizeLongestSideAndPad:
             x1 = random.randint(0, original_w - new_w)
 
             # Perform the crop using slicing
-            processed_image = image[..., y1: y1 + new_h, x1: x1 + new_w]
-            processed_label = label[..., y1: y1 + new_h, x1: x1 + new_w]
+            processed_image = image[..., y1 : y1 + new_h, x1 : x1 + new_w]
+            processed_label = label[..., y1 : y1 + new_h, x1 : x1 + new_w]
 
         # 3. Perform LongestMaxSize
         # 3.1. Get processed_image dimensions
@@ -449,13 +449,13 @@ class TestDataset:
 
 if __name__ == "__main__":
 
-    train_image_path = "../boundary_seg_crop/data_test/images/"
-    train_mask_path = "../boundary_seg_crop/data_test/masks/"
+    train_image_path = "../wall_seg_crop/data_test/images/"
+    train_mask_path = "../wall_seg_crop/data_test/masks/"
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
     # 1. Load train data
-    dataset = FullDataset(train_image_path, train_mask_path, 1536, mode="train")
+    dataset = FullDataset(train_image_path, train_mask_path, 960, mode="train")
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]

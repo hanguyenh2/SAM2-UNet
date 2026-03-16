@@ -7,22 +7,30 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from SAM2UNet import SAM2UNet
 from dataset import TestDataset
+from SAM2UNet import SAM2UNet
 
 # 1. Define parser
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, required=True,
-                    help="path to the checkpoint of sam2-unet")
-parser.add_argument("--save_path", type=str, required=True,
-                    help="path to save the predicted masks")
-parser.add_argument("--test_image_path", type=str,
-                    default="../boundary_seg_crop/data_test/images/",
-                    help="path to the image files for testing")
-parser.add_argument("--test_gt_path", type=str,
-                    default="../boundary_seg_crop/data_test/masks/",
-                    help="path to the mask files for testing")
-parser.add_argument("--size", default=1536, type=int)
+parser.add_argument(
+    "--checkpoint", type=str, required=True, help="path to the checkpoint of sam2-unet"
+)
+parser.add_argument(
+    "--save_path", type=str, required=True, help="path to save the predicted masks"
+)
+parser.add_argument(
+    "--test_image_path",
+    type=str,
+    default="../wall_seg_crop/data_test/images/",
+    help="path to the image files for testing",
+)
+parser.add_argument(
+    "--test_gt_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks/",
+    help="path to the mask files for testing",
+)
+parser.add_argument("--size", default=960, type=int)
 args = parser.parse_args()
 
 # 2. Set device to cuda
@@ -55,10 +63,10 @@ for i in range(test_loader.size):
 
         # Remove padding
         pad_left, pad_top, pad_right, pad_bottom = padding
-        res = res_padded[:, :, pad_top: args.size - pad_bottom, pad_left: args.size - pad_right]
+        res = res_padded[:, :, pad_top : args.size - pad_bottom, pad_left : args.size - pad_right]
 
         # Output conversion
-        res = F.interpolate(res, size=gt.shape, mode='bilinear', align_corners=False)
+        res = F.interpolate(res, size=gt.shape, mode="bilinear", align_corners=False)
         res = res.sigmoid().data.cpu()
         res = res.numpy().squeeze()
         res = (res - res.min()) / (res.max() - res.min() + 1e-8)

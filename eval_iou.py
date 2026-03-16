@@ -26,11 +26,13 @@ def calculate_mask_metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
 
 # 1. Define args
 parser = argparse.ArgumentParser()
-parser.add_argument("--pred_path", type=str, required=True,
-                    help="path to the prediction results")
-parser.add_argument("--gt_path", type=str,
-                    default="../boundary_seg_crop/data_test/masks/",
-                    help="path to the ground truth masks")
+parser.add_argument("--pred_path", type=str, required=True, help="path to the prediction results")
+parser.add_argument(
+    "--gt_path",
+    type=str,
+    default="../wall_seg_crop/data_test/masks/",
+    help="path to the ground truth masks",
+)
 args = parser.parse_args()
 
 # 2. Define FmeasureV2
@@ -54,7 +56,7 @@ for i, mask_name in enumerate(mask_name_list):
     #     continue
     # 4.1. Get file info
     mask_path = os.path.join(mask_root, mask_name)
-    pred_path = os.path.join(pred_root, mask_name[:-4] + '.png')
+    pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
     # 4.2. Read images
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
     pred = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
@@ -76,5 +78,5 @@ curr_results = {
 }
 
 print("\nEvaluation results:")
-print("mDice:       ", format(curr_results['meandice'], '.3f'))
-print("mIoU:        ", format(curr_results['meaniou'], '.3f'))
+print("mDice:       ", format(curr_results["meandice"], ".3f"))
+print("mIoU:        ", format(curr_results["meaniou"], ".3f"))
