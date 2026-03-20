@@ -448,9 +448,8 @@ class TestDataset:
 
 
 if __name__ == "__main__":
-
-    train_image_path = "../wall_seg_crop/data_test/images/"
-    train_mask_path = "../wall_seg_crop/data_test/masks/"
+    train_image_path = "/Users/hhn21/Documents/h2/primus/wall_seg_crop/data_test/images/"
+    train_mask_path = "/Users/hhn21/Documents/h2/primus/wall_seg_crop/data_test/masks/"
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)

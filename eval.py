@@ -3,290 +3,262 @@ import os
 
 import cv2
 import numpy as np
-import py_sod_metrics
-from shapely.geometry import Polygon
-from shapely.validation import make_valid  # To handle invalid polygons if they arise
+from skimage.measure import label, regionprops
 
-IOU_THRESHOLD = 0.95  # IoU threshold to consider a match
+# IoU levels to determine if an instance prediction is a "True Positive"
+IOU_THRESHOLDS = [0.5, 0.75]
+# Score threshold for foreground extraction.
+SCORE_THRESHOLD = 0.1
+SEMANTIC_IOU = "semantic_iou"
+DICE_COEFFICIENT = "dice_coefficient"
+COUNT_GT = "count_gt"
+COUNT_PRED = "count_pred"
+INSTANCE_PRECISION = "instance_precision"
+INSTANCE_RECALL = "instance_recall"
+INSTANCE_F1 = "instance_f1"
+MIOU = "mIoU"
+MDICE = "mDice"
 
 
-def calculate_iou_from_polygons(
-    poly1: Polygon, poly2: Polygon, area_threshold: float = 0.001
-) -> float:
+def print_eval_report(results: dict, title: str = "Evaluation Results", log_path: str = None):
     """
-    Calculates IoU coefficient between two Shapely Polygon objects.
+    Prints a formatted, easy-to-read summary of the evaluation dictionary.
+    """
+    width = max(len(title) + 2, 25)
+    report = []
+    report.append(f"\n{'=' * width}")
+    report.append(f"{title:^{width}}")
+    report.append(f"{'-' * width}")
+
+    for metric, value in results.items():
+        # Clean up key names (e.g., 'total_mIoU' -> 'total mIou')
+        display_name = metric.replace("_", " ")
+
+        # Format floats to 4 decimal places, leave others as is
+        if isinstance(value, float):
+            report.append(f"{display_name:<{width - 8}}: {value:>6.4f}")
+        else:
+            report.append(f"{display_name:<{width - 8}}: {value:>6}")
+
+    report.append(f"{'=' * width}\n")
+
+    # Print to console
+    full_report = "\n".join(report)
+    print(full_report)
+
+    # Save to file if path is provided
+    if log_path:
+        with open(log_path, "a") as f:
+            f.write(full_report)
+
+
+def evaluate_segmentation_performance(
+    pred_mask: np.ndarray,
+    gt_mask: np.ndarray,
+    threshold: float = 255 * SCORE_THRESHOLD,
+) -> dict[str, float]:
+    """
+    Evaluates segmentation using semantic and instance-level metrics.
+
+    The function computes pixel-wise overlap (IoU, Dice) and instance-level
+    matching (Precision, Recall) by treating connected components as
+    individual segments.
 
     Args:
-        poly1 (Polygon): The first polygon (e.g., ground truth contour).
-        poly2 (Polygon): The second polygon (e.g., predicted contour).
-        area_threshold (float): Minimum area for a polygon to be considered non-empty.
-                                Helps handle floating point inaccuracies for very small overlaps.
+        pred_mask: A grayscale or binary NumPy array from the model output.
+        gt_mask: A grayscale or binary NumPy array representing the ground truth.
+        threshold: Binarization threshold for foreground extraction.
 
     Returns:
-        float: iou_score. Returns 0.0 if no valid intersection or if either polygon is effectively empty.
+        A dictionary containing:
+            - SEMANTIC_IOU: Global pixel-wise Intersection over Union.
+            - DICE_COEFFICIENT: Global Dice score.
+            - 'instance_precision_50': Precision at 0.5 IoU threshold.
+            - 'instance_recall_50': Recall at 0.5 IoU threshold.
+            - 'instance_f1_50': F1 Score at 0.5 IoU threshold.
+
+    Raises:
+        ValueError: If input masks have different dimensions.
     """
-    # 1. Make sure shapely polygon is valid
-    if not poly1.is_valid:
-        poly1 = make_valid(poly1)
-    if not poly2.is_valid:
-        poly2 = make_valid(poly2)
+    # Validate input
+    if pred_mask.shape != gt_mask.shape:
+        raise ValueError(f"Shape mismatch: Pred {pred_mask.shape} vs GT {gt_mask.shape}")
 
-    # 2. Check for empty polygons
-    if poly1.area < area_threshold or poly2.area < area_threshold:
-        return 0.0
+    # 1. Pre-processing: Binarize and Label
+    pred_bin = (pred_mask > threshold).astype(np.uint8)
+    gt_bin = (gt_mask > threshold).astype(np.uint8)
 
-    # 3. Calculate intersection and union
-    intersection_area = poly1.intersection(poly2).area
-    union_area = poly1.union(poly2).area
-
-    # 3. Calculate iou
-    iou = intersection_area / union_area if union_area > area_threshold else 0.0
-
-    return iou
-
-
-def opencv_contour_to_shapely_polygon(contour: np.ndarray) -> Polygon:
-    """
-    Converts an OpenCV contour (numpy array) to a Shapely Polygon.
-    OpenCV contours are typically (N, 1, 2) and need to be reshaped to (N, 2).
-    Also, handles potential issues with invalid polygons from simple contour points.
-    """
-    if contour.shape[1] == 1 and contour.shape[2] == 2:
-        # Reshape (N, 1, 2) to (N, 2) for Shapely
-        polygon_points = contour.reshape(-1, 2)
-    else:
-        polygon_points = contour  # Assume it's already (N, 2)
-
-    if polygon_points.shape[0] < 3:  # A polygon needs at least 3 points
-        return Polygon()  # Return an empty polygon if not enough points
-
-    try:
-        # Ensure points are integers for consistency if coming from pixels
-        poly = Polygon(polygon_points)
-        if not poly.is_valid:
-            poly = make_valid(poly)  # Attempt to fix invalid polygons
-        return poly
-    except Exception:
-        # print(f"Warning: Could not create Shapely Polygon from contour. Error: {e}")
-        return Polygon()  # Return an empty polygon on error
-
-
-def evaluate_contours(
-    gt_contours: list[np.ndarray],
-    pred_contours: list[np.ndarray],
-) -> dict:
-    """
-    Evaluates detected contours against ground truth contours for a single image.
-    Calculates True Positives, False Positives, and False Negatives based on IoU matching.
-
-    Args:
-        gt_contours (list[np.ndarray]): List of ground truth contours (OpenCV format).
-        pred_contours (list[np.ndarray]): List of predicted contours (OpenCV format).
-
-    Returns:
-        dict: Contains counts of 'TP', 'FP', 'FN', 'matched_ious', 'mean_iou_matched'.
-    """
-    # 1. Convert OpenCV contours to Shapely Polygons
-    gt_polygons = [opencv_contour_to_shapely_polygon(c) for c in gt_contours]
-    pred_polygons = [opencv_contour_to_shapely_polygon(c) for c in pred_contours]
-
-    # 2. Filter out invalid/empty polygons from the conversion
-    gt_polygons = [p for p in gt_polygons if not p.is_empty and p.area > 0]
-    pred_polygons = [p for p in pred_polygons if not p.is_empty and p.area > 0]
-
-    # 3. Initial check gt and pred
-    num_gt = len(gt_polygons)
-    num_pred = len(pred_polygons)
-    if num_gt == 0 and num_pred == 0:
-        return {"TP": 0, "FP": 0, "FN": 0}
-    if num_gt == 0 and num_pred > 0:
-        return {"TP": 0, "FP": num_pred, "FN": 0}
-    if num_gt > 0 and num_pred == 0:
-        return {"TP": 0, "FP": 0, "FN": num_gt}
-
-    # 4. Initialize lists to track matches
-    # Boolean arrays to mark if a GT or Pred contour has been matched
-    gt_matched = [False] * num_gt
-    pred_matched = [False] * num_pred
-
-    # 5. Calculate IoU matrix
-    iou_matrix = np.zeros((num_gt, num_pred))
-    for i, gt_poly in enumerate(gt_polygons):
-        for j, pred_poly in enumerate(pred_polygons):
-            iou_matrix[i, j] = calculate_iou_from_polygons(gt_poly, pred_poly)
-
-    # 6. Greedily match predictions to ground truths based on highest IoU
-    # Iterate through potential matches from highest IoU downwards
-    # Flatten the matrix and get indices sorted by IoU
-    sorted_indices = np.argsort(iou_matrix.flatten())[::-1]  # Descending order
-
-    # Store all valid IoU scores for matched pairs
-    TP = 0
-    for flat_idx in sorted_indices:
-        gt_idx = flat_idx // num_pred
-        pred_idx = flat_idx % num_pred
-
-        if iou_matrix[gt_idx, pred_idx] >= IOU_THRESHOLD:
-            if not gt_matched[gt_idx] and not pred_matched[pred_idx]:
-                TP += 1
-                gt_matched[gt_idx] = True
-                pred_matched[pred_idx] = True
-
-    # 7. Calculate the remaining metrics
-    # 7.1. Count False Positives (predictions not matched)
-    FP = sum(1 for matched in pred_matched if not matched)
-    # 7.2.Count False Negatives (ground truths not matched)
-    FN = sum(1 for matched in gt_matched if not matched)
-
-    return {
-        "TP": TP,
-        "FP": FP,
-        "FN": FN,
-    }
-
-
-def find_contours_with_parent(mask: np.ndarray) -> np.array:
-    """Return contours with parent found in mask"""
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-    contours_with_parent = []
-    for i, contour in enumerate(contours):
-        parent_idx = hierarchy[0][i][3]
-        # Room contour has parent and no grandparent
-        if parent_idx != -1 and hierarchy[0][parent_idx][3] == -1:
-            contours_with_parent.append(contour)
-    return contours_with_parent
-
-
-def extract_room_contours(mask: np.ndarray, windoor_mask: np.ndarray):
-    """Extract room contours from combination of mask and windoor_mask"""
-    # 1. Combine mask and windoor_mask
-    wall_mask = cv2.bitwise_or(mask, windoor_mask)
-    # 2. Dilate to connect close pixels
-    dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    wall_mask = cv2.dilate(wall_mask, dilate_kernel)
-    return wall_mask, find_contours_with_parent(wall_mask)
-
-
-def draw_contours(mask: np.ndarray, contours: np.array) -> np.ndarray:
-    """Draw contours"""
-    contour_mask = np.zeros_like(mask)
-    for i, contour in enumerate(contours):
-        cv2.drawContours(contour_mask, [contour], 0, 255, thickness=cv2.FILLED)
-    return contour_mask
-
-
-def calculate_mask_metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
-    """
-    Calculates the Dice coefficient (mDice) and Intersection over Union (mIoU)
-    for a single pair of masks.
-    """
-    sample_gray_ = dict(with_adaptive=True, with_dynamic=True)
-    FMv2_ = py_sod_metrics.FmeasureV2(
-        metric_handlers={
-            "iou": py_sod_metrics.IOUHandler(**sample_gray_),
-            "dice": py_sod_metrics.DICEHandler(**sample_gray_),
-        }
+    # 2. Semantic Evaluation (Pixel-wise)
+    intersection = np.logical_and(pred_bin, gt_bin).sum()
+    union = np.logical_or(pred_bin, gt_bin).sum()
+    # 2.1. Iou calculation
+    s_iou = intersection / union if union > 0 else 0.0
+    # 2.2. Dice calculation
+    dice = (
+        (2 * intersection) / (pred_bin.sum() + gt_bin.sum())
+        if (pred_bin.sum() + gt_bin.sum()) > 0
+        else 0.0
     )
-    FMv2_.step(pred=pred, gt=gt)
-    fmv2_ = FMv2_.get_results()
 
-    return {"mDice": fmv2_["dice"]["dynamic"].mean(), "mIoU": fmv2_["iou"]["dynamic"].mean()}
+    # 3. Instance Evaluation (Object-wise)
+    # label() identifies separate 'islands' of target pixels
+    pred_label = label(pred_bin)
+    gt_label = label(gt_bin)
+    # 3.1. Calculate predicted and ground truth properties
+    pred_props = regionprops(pred_label)
+    gt_props = regionprops(gt_label)
 
-
-# 1. Define args
-parser = argparse.ArgumentParser()
-parser.add_argument("--pred_path", type=str, required=True, help="path to the prediction results")
-parser.add_argument(
-    "--gt_path",
-    type=str,
-    default="../wall_seg_crop/data_test/masks/",
-    help="path to the ground truth masks",
-)
-parser.add_argument(
-    "--masks_windoor_path",
-    type=str,
-    default="../wall_seg_crop/data_test/masks_windoor/",
-    help="path to the windoor masks",
-)
-args = parser.parse_args()
-
-# 2. Define FmeasureV2
-sample_gray = dict(with_adaptive=True, with_dynamic=True)
-FMv2 = py_sod_metrics.FmeasureV2(
-    metric_handlers={
-        "iou": py_sod_metrics.IOUHandler(**sample_gray),
-        "dice": py_sod_metrics.DICEHandler(**sample_gray),
+    # 4. Init eval_result dictionary
+    eval_result = {
+        SEMANTIC_IOU: s_iou,
+        DICE_COEFFICIENT: dice,
+        COUNT_GT: len(gt_props),
+        COUNT_PRED: len(pred_props),
     }
-)
 
-# 3. Get info from args
-pred_root = args.pred_path
-mask_root = args.gt_path
-mask_windoor_root = args.masks_windoor_path
-mask_name_list = sorted(os.listdir(mask_root))
+    # 5. Instance matching logic for each threshold
+    for thresh in IOU_THRESHOLDS:
+        tp = 0
+        matched_gt_indices = set()
 
-# 4. Evaluate
-all_tps = 0
-all_fps = 0
-all_fns = 0
-for i, mask_name in enumerate(mask_name_list):
-    # if "0183_1-AP_001-FL_0183-越" not in mask_name:
-    #     continue
-    # 4.1. Get file info
-    mask_path = os.path.join(mask_root, mask_name)
-    pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
-    mask_windoor_path = os.path.join(mask_windoor_root, mask_name[:-4] + ".png")
-    # 4.2. Read images
-    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-    pred = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
-    # Apply threshold to pre
-    pred = pred >= 0.1 * 255
-    pred = (pred * 255).astype(np.uint8)
+        for pred_prop in pred_props:
+            best_iou = 0
+            best_gt_idx = -1
 
-    # 4.3. Combine mask and pre with windoor mask to extract room contours
-    windoor_mask = cv2.imread(mask_windoor_path, cv2.IMREAD_GRAYSCALE)
-    _, gt_contours = extract_room_contours(mask, windoor_mask)
-    _, pred_contours = extract_room_contours(pred, windoor_mask)
+            # 5.1. Create a localized mask for the current predicted property
+            p_mask = pred_label == pred_prop.label
 
-    # 4.4. Draw room contours to create room mask
-    mask_room = draw_contours(mask=mask, contours=gt_contours)
-    pred_room = draw_contours(mask=pred, contours=pred_contours)
+            for idx, gt_prop in enumerate(gt_props):
+                # Continue for matched indexes
+                if idx in matched_gt_indices:
+                    continue
 
-    # 4.3. Segmentation Evaluation using room mask
-    FMv2.step(pred=pred_room, gt=mask_room)
-    mask_metrics = calculate_mask_metrics(pred=pred_room, gt=mask_room)
-    print(f"{mask_metrics['mDice']:.3f}\t{mask_metrics['mIoU']:.3f}")
+                # 5.2. Create a localized mask for the current ground truth property
+                g_mask = gt_label == gt_prop.label
 
-    # 4.4. Detection Evaluation using contours
-    contour_eval_results = evaluate_contours(gt_contours=gt_contours, pred_contours=pred_contours)
-    # 4.5. Add evaluation results
-    # True Positives
-    all_tps += contour_eval_results["TP"]
-    # False Positives
-    all_fps += contour_eval_results["FP"]
-    # False Negatives
-    all_fns += contour_eval_results["FN"]
-    # 4.6
+                # 5.3. Check intersection only in the bounding box area for speed
+                intersection = np.logical_and(p_mask, g_mask).sum()
+                union = np.logical_or(p_mask, g_mask).sum()
+                iou = intersection / union if union > 0 else 0
 
-# After the loop, calculate overall metrics:
-overall_precision = all_tps / (all_tps + all_fps) if (all_tps + all_fps) > 0 else 0.0
-overall_recall = all_tps / (all_tps + all_fns) if (all_tps + all_fns) > 0 else 0.0
-overall_f1 = (
-    (2 * overall_precision * overall_recall) / (overall_precision + overall_recall)
-    if (overall_precision + overall_recall) > 0
-    else 0.0
-)
+                # 5.4. Save best iou
+                if iou > best_iou:
+                    best_iou = iou
+                    best_gt_idx = idx
 
-fmv2 = FMv2.get_results()
+            # 5.4. Count tp if best_iou >= thresh
+            if best_iou >= thresh:
+                tp += 1
+                matched_gt_indices.add(best_gt_idx)
 
-curr_results = {
-    "meandice": fmv2["dice"]["dynamic"].mean(),
-    "meaniou": fmv2["iou"]["dynamic"].mean(),
-}
+        # 5.5. Calculate Precision and Recall and F1 Score for this threshold
+        precision = tp / len(pred_props) if len(pred_props) > 0 else 0.0
+        recall = tp / len(gt_props) if len(gt_props) > 0 else 0.0
+        # Calculate F1 Score
+        if (precision + recall) > 0:
+            f1_score = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1_score = 0.0
 
-print("\nEvaluation results:")
-print("Precision:   ", format(overall_precision, ".3f"))
-print("Recall:      ", format(overall_recall, ".3f"))
-print("F1:          ", format(overall_f1, ".3f"))
-print("mDice:       ", format(curr_results["meandice"], ".3f"))
-print("mIoU:        ", format(curr_results["meaniou"], ".3f"))
+        # 5.6. Save evaluation result to final dict
+        suffix = int(thresh * 100)
+        eval_result[f"{INSTANCE_PRECISION}_{suffix}"] = precision
+        eval_result[f"{INSTANCE_RECALL}_{suffix}"] = recall
+        eval_result[f"{INSTANCE_F1}_{suffix}"] = f1_score
+
+    return eval_result
+
+
+def evaluate_dataset(all_image_results: list[dict[str, float]]) -> dict:
+    """
+    Aggregates per-image evaluation results into dataset-level metrics.
+
+    Args:
+        all_image_results: A list of dictionaries, where each dictionary
+            contains the output from `evaluate_segmentation_performance`.
+
+    Returns:
+        A dictionary containing dataset-wide averages and global instance scores.
+    """
+    # Validate input
+    if not all_image_results:
+        return {}
+
+    # 1. Aggregate Semantic Metrics (Simple Mean)
+    mean_iou = np.mean([r[SEMANTIC_IOU] for r in all_image_results])
+    mean_dice = np.mean([r[DICE_COEFFICIENT] for r in all_image_results])
+
+    # 2. Aggregate Instance Metrics (Global Summation)
+    # We sum TP, FP, and GT counts across all images for a more stable metric
+    total_gt = sum(r[COUNT_GT] for r in all_image_results)
+    total_pred = sum(r[COUNT_PRED] for r in all_image_results)
+
+    # 3. Init final_result dictionary
+    final_result = {
+        MIOU: mean_iou,
+        MDICE: mean_dice,
+        "Instance_count": total_gt,
+    }
+    for thresh in IOU_THRESHOLDS:
+        suffix = int(thresh * 100)
+        # To calculate global Precision/Recall, we need the TP count back.
+        # Note: You may need to update the previous function to return 'tp_50' count.
+        # For now, we'll derive it: TP = Precision * Total_Pred
+        total_tp = sum(
+            r[f"{INSTANCE_PRECISION}_{suffix}"] * r[COUNT_PRED] for r in all_image_results
+        )
+
+        total_precision = total_tp / total_pred if total_pred > 0 else 0.0
+        total_recall = total_tp / total_gt if total_gt > 0 else 0.0
+
+        # F1 Score is often the most useful 'single number' for wall detection
+        total_f1 = (
+            (2 * total_precision * total_recall) / (total_precision + total_recall)
+            if (total_precision + total_recall) > 0
+            else 0.0
+        )
+
+        final_result[f"Precision_{suffix}"] = total_precision
+        final_result[f"Recall_{suffix}"] = total_recall
+        final_result[f"F1_Score_{suffix}"] = total_f1
+
+    return final_result
+
+
+if __name__ == "__main__":
+
+    # 1. Read inputs
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--pred_path", type=str, required=True, help="Path to the prediction results"
+    )
+    parser.add_argument(
+        "--gt_path", type=str, required=True, help="Path to the ground truth masks"
+    )
+    args = parser.parse_args()
+
+    # Init for next steps
+    pred_root = args.pred_path
+    gt_root = args.gt_path
+    gt_list = sorted(os.listdir(gt_root))
+    log_path = os.path.join(args.pred_path, "log.txt")
+    results = []
+    # 2. Evaluate each gt file
+    len_gt_list = len(gt_list)
+    for i, mask_name in enumerate(gt_list):
+        title = f"[{i+1}/{len_gt_list}] {mask_name}"
+        # 2.1. Read gt and pred path
+        gt_path = os.path.join(gt_root, mask_name)
+        pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
+        # 2.2. Read gt and pred images
+        gt_mask = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+        pred_mask = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
+        # 2.3. Evaluate
+        result = evaluate_segmentation_performance(pred_mask, gt_mask)
+        # 2.4. Save result
+        print_eval_report(result, title=title, log_path=log_path)
+        results.append(result)
+
+    # 3. Evaluate all results
+    final_result = evaluate_dataset(results)
+    print_eval_report(final_result, title="Segmentation Evaluation", log_path=log_path)
