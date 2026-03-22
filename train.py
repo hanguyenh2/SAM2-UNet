@@ -57,7 +57,6 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
     epoch_loss = 2.0
     base_mean_iou = args.base_mean_iou
-    auto_save_iou = args.auto_save_iou
     save_interval = args.save_interval
     log_path = os.path.join(args.save_path, "log.txt")  # Path to log file
     for epoch in range(args.epoch):
@@ -142,13 +141,6 @@ def main(args):
             # Save checkpoint and print status
             torch.save(model.state_dict(), save_model_path)
             print("Saving Snapshot best:", save_model_path)
-        elif mean_iou > auto_save_iou:
-            save_model_path = os.path.join(
-                args.save_path,
-                f"SAM2-UNet_epoch-{epoch + 1}_loss-{epoch_loss:.3f}_iou-{mean_iou:.3f}.pth",
-            )
-            torch.save(model.state_dict(), save_model_path)
-            print("Auto Saving Good Snapshot:", save_model_path)
         elif (epoch + 1) % save_interval == 0 or (epoch + 1) == args.epoch:
             # Set save_model_path
             save_model_path = os.path.join(args.save_path, "SAM2-UNet_epoch-latest.pth")
@@ -213,7 +205,6 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", default=5e-4, type=float)
     parser.add_argument("--save_interval", default=20, type=int)
     parser.add_argument("--base_mean_iou", default=0.83, type=float)
-    parser.add_argument("--auto_save_iou", default=0.85, type=float)
     args = parser.parse_args()
 
     # seed_torch(1024)
