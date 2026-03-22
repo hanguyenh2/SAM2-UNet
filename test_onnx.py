@@ -164,7 +164,7 @@ class SamUnetBaseSegmenter(ModelMixin, BaseSegmenter):
         height, width = image.shape[:2]
         # 3. Run the model
         try:
-            output = self.run(inputs={"images": img})[0]
+            output, _, _ = self.run(inputs={"images": img})
         except Exception as e:
             # 3.1 Return zeros mask if Exception
             print(f"Error running Segmentation Model: {e}")
