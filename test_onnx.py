@@ -310,6 +310,7 @@ if __name__ == "__main__":
         # 2.4. Save result
         cv2.imwrite(os.path.join(args.save_path, file_name[:-4] + ".png"), pred_mask)
         # 2.5. Evaluate result
+        title = f"[{i + 1}/{len_image_list}][{process_time:.2f}s] {file_name}"
         if gt_root:
             # 2.5.1. Get gt_path
             gt_path = os.path.join(gt_root, file_name)
@@ -318,12 +319,10 @@ if __name__ == "__main__":
             # 2.5.3. Evaluate result
             result = evaluate_segmentation_performance(pred_mask, gt_mask)
             # 2.5.4. Save and print eval result
-            title = f"[{i + 1}/{len_image_list}][{process_time:.2f}s] {file_name}"
             print_eval_report(result, title=title, log_path=log_path)
             results.append(result)
         else:
-            print(file_name)
-            print(f"Process time: {process_time}s\n")
+            print(title)
 
     # 3. Evaluate all results
     final_result = evaluate_dataset(results)

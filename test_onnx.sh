@@ -1,9 +1,9 @@
 #!/bin/bash
 
-CUDA_VISIBLE_DEVICES="5" \
+CUDA_VISIBLE_DEVICES="" \
 python test_onnx.py \
 --size 960 \
---checkpoint "/home/ha.nguyen/workspace/docker_volumes/SAM3-UNet_epoch-8_loss-0.147_iou-0.862.onnx" \
---save_path "../results_20260319_1344_lr-0.001_weight-5_3_epoch-8/" \
---test_image_path "/data1/workspace/ai_shared_workspace/train_data/wall_seg_crop/data_test/images/" \
---test_gt_path "/data1/workspace/ai_shared_workspace/train_data/wall_seg_crop/data_test/masks/"
+--checkpoint "/Users/hhn21/Documents/h2/interior/wall_seg_sam2unet_960_20260325.onnx" \
+--save_path "/Users/hhn21/Documents/h2/ANDERSEN/data/andersen_crop/wall_masks/" \
+--test_image_path "/Users/hhn21/Documents/h2/ANDERSEN/data/andersen_crop/images/" \
+--test_gt_path ""
