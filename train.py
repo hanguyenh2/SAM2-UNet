@@ -46,7 +46,7 @@ def main(args):
         model.load_state_dict(torch.load(args.checkpoint), strict=True)
     # 5. Set optimizer
     optim = opt.AdamW(
-        [{"params": model.parameters(), "initia_lr": args.lr}],
+        [{"params": model.parameters(), "initial_lr": args.lr}],
         lr=args.lr,
         weight_decay=args.weight_decay,
     )
