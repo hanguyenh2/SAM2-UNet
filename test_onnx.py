@@ -248,13 +248,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--test_image_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/wall_seg_crop/data_test/images/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_test/images/",
         help="path to the image files for testing",
     )
     parser.add_argument(
         "--test_gt_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/wall_seg_crop/data_test/masks/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_test/masks/",
         help="path to the mask files for testing",
     )
     parser.add_argument("--size", default=960, type=int)

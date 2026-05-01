@@ -155,23 +155,27 @@ class Normalize:
 
 
 class RandomRotate:
-    def __init__(self, p=0.75):
+    def __init__(self, p=0.8):
         self.p = p
 
     def __call__(self, data):
         image, label = data["image"], data["label"]
         # Randomly choose rotation (0, 90, 180, 270 degrees)
         if random.random() < self.p:
-            angle = random.choice([90, 180, 270])
-            return {
-                "image": F.rotate(
-                    image, angle, interpolation=InterpolationMode.BILINEAR, expand=False
-                ),
-                "label": F.rotate(
-                    label, angle, interpolation=InterpolationMode.NEAREST, expand=False
-                ),
-            }
-        return {"image": image, "label": label}
+            angle = random.choice([0, 90, 180, 270])
+        else:
+            angle = random.choice([45, 135, 225, 315])
+
+        # Return original if angle == 0
+        if angle == 0:
+            return {"image": image, "label": label}
+
+        return {
+            "image": F.rotate(
+                image, angle, interpolation=InterpolationMode.BILINEAR, expand=False
+            ),
+            "label": F.rotate(label, angle, interpolation=InterpolationMode.NEAREST, expand=False),
+        }
 
 
 class ToGray:
@@ -448,8 +452,8 @@ class TestDataset:
 
 
 if __name__ == "__main__":
-    train_image_path = "/Users/hhn21/Documents/h2/primus/wall_seg_crop/data_test/images/"
-    train_mask_path = "/Users/hhn21/Documents/h2/primus/wall_seg_crop/data_test/masks/"
+    train_image_path = "/Users/hhn21/Documents/h2/primus/andersen_boundary_10.3/data_test/images/"
+    train_mask_path = "/Users/hhn21/Documents/h2/primus/andersen_boundary_10.3/data_test/masks/"
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
