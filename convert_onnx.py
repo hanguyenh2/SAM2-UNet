@@ -30,6 +30,7 @@ def convert_pth_to_onnx(model, dummy_input, onnx_path):
             do_constant_folding=True,
             input_names=["images"],
             output_names=["output", "output_1", "output_2"],
+            opset_version=17,  # <--- Use 17 or higher for SAM2 architectures
         )
         print(f"Model successfully exported to ONNX: {onnx_path}")
     except Exception as e:

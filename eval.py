@@ -197,7 +197,7 @@ def evaluate_dataset(all_image_results: list[dict[str, float]]) -> dict:
     final_result = {
         MIOU: mean_iou,
         MDICE: mean_dice,
-        "Instance_count": total_gt,
+        "images_count": total_gt,
     }
     for thresh in IOU_THRESHOLDS:
         suffix = int(thresh * 100)
@@ -239,16 +239,16 @@ if __name__ == "__main__":
 
     # Init for next steps
     pred_root = args.pred_path
-    gt_root = args.gt_path
+    gt_root = str(args.gt_path)
     gt_list = sorted(os.listdir(gt_root))
     log_path = os.path.join(args.pred_path, "log.txt")
     results = []
     # 2. Evaluate each gt file
     len_gt_list = len(gt_list)
     for i, mask_name in enumerate(gt_list):
-        title = f"[{i+1}/{len_gt_list}] {mask_name}"
+        title = f"[{i + 1}/{len_gt_list}] {mask_name}"
         # 2.1. Read gt and pred path
-        gt_path = os.path.join(gt_root, mask_name)
+        gt_path = str(os.path.join(gt_root, mask_name))
         pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
         # 2.2. Read gt and pred images
         gt_mask = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
