@@ -1,5 +1,6 @@
 import argparse
 import os
+from typing import Any
 
 import cv2
 import numpy as np
@@ -7,17 +8,21 @@ from skimage.measure import label, regionprops
 
 # IoU levels to determine if an instance prediction is a "True Positive"
 IOU_THRESHOLDS = [0.5, 0.75]
-# Score threshold for foreground extraction.
+# Score threshold for foreground extraction
 SCORE_THRESHOLD = 0.1
+# Width of boundary for comparison
+BOUNDARY_WIDTH = 155
+
+# Metric Keys
 SEMANTIC_IOU = "semantic_iou"
-DICE_COEFFICIENT = "dice_coefficient"
+BOUNDARY_IOU = "boundary_iou"
 COUNT_GT = "count_gt"
 COUNT_PRED = "count_pred"
 INSTANCE_PRECISION = "instance_precision"
 INSTANCE_RECALL = "instance_recall"
 INSTANCE_F1 = "instance_f1"
 MIOU = "mIoU"
-MDICE = "mDice"
+MBIOU = "mBIoU"
 
 
 def print_eval_report(results: dict, title: str = "Evaluation Results", log_path: str = None):
@@ -52,11 +57,32 @@ def print_eval_report(results: dict, title: str = "Evaluation Results", log_path
             f.write(full_report)
 
 
+def compute_biou(
+    pred_bin: np.ndarray, gt_bin: np.ndarray, boundary_width: int = BOUNDARY_WIDTH
+) -> float:
+    """Computes Intersection over Union restricted to the boundary band."""
+
+    def get_boundary(mask: np.ndarray, erode_kernel: np.ndarray) -> np.ndarray:
+        eroded = cv2.bitwise_not(cv2.erode(mask, erode_kernel))
+        return cv2.bitwise_and(eroded, mask)
+
+    # 1. Extract boundaries
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (boundary_width, boundary_width))
+    pred_boundary = get_boundary(pred_bin, kernel)
+    gt_boundary = get_boundary(gt_bin, kernel)
+
+    # 2. Calculate intersection and union
+    intersection = np.logical_and(pred_boundary, gt_boundary).sum()
+    union = np.logical_or(pred_boundary, gt_boundary).sum()
+
+    return intersection / union if union > 0 else 0.0
+
+
 def evaluate_segmentation_performance(
     pred_mask: np.ndarray,
     gt_mask: np.ndarray,
     threshold: float = 255 * SCORE_THRESHOLD,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """
     Evaluates segmentation using semantic and instance-level metrics.
 
@@ -72,7 +98,6 @@ def evaluate_segmentation_performance(
     Returns:
         A dictionary containing:
             - SEMANTIC_IOU: Global pixel-wise Intersection over Union.
-            - DICE_COEFFICIENT: Global Dice score.
             - 'instance_precision_50': Precision at 0.5 IoU threshold.
             - 'instance_recall_50': Recall at 0.5 IoU threshold.
             - 'instance_f1_50': F1 Score at 0.5 IoU threshold.
@@ -93,30 +118,28 @@ def evaluate_segmentation_performance(
     union = np.logical_or(pred_bin, gt_bin).sum()
     # 2.1. Iou calculation
     s_iou = intersection / union if union > 0 else 0.0
-    # 2.2. Dice calculation
-    dice = (
-        (2 * intersection) / (pred_bin.sum() + gt_bin.sum())
-        if (pred_bin.sum() + gt_bin.sum()) > 0
-        else 0.0
-    )
 
-    # 3. Instance Evaluation (Object-wise)
-    # label() identifies separate 'islands' of target pixels
+    # 3. Boundary-Specific Metrics
+    # 3.1. Boundary IoU
+    b_iou = compute_biou(pred_bin, gt_bin)
+
+    # 4. Instance Evaluation (Object-wise)
+    # 4.1. label() identifies separate 'islands' of target pixels
     pred_label = label(pred_bin)
     gt_label = label(gt_bin)
-    # 3.1. Calculate predicted and ground truth properties
+    # 4.2. Calculate predicted and ground truth properties
     pred_props = regionprops(pred_label)
     gt_props = regionprops(gt_label)
 
-    # 4. Init eval_result dictionary
+    # 5. Init eval_result dictionary
     eval_result = {
         SEMANTIC_IOU: s_iou,
-        DICE_COEFFICIENT: dice,
+        BOUNDARY_IOU: b_iou,
         COUNT_GT: len(gt_props),
         COUNT_PRED: len(pred_props),
     }
 
-    # 5. Instance matching logic for each threshold
+    # 6. Instance matching logic for each threshold
     for thresh in IOU_THRESHOLDS:
         tp = 0
         matched_gt_indices = set()
@@ -125,7 +148,7 @@ def evaluate_segmentation_performance(
             best_iou = 0
             best_gt_idx = -1
 
-            # 5.1. Create a localized mask for the current predicted property
+            # 6.1. Create a localized mask for the current predicted property
             p_mask = pred_label == pred_prop.label
 
             for idx, gt_prop in enumerate(gt_props):
@@ -133,25 +156,25 @@ def evaluate_segmentation_performance(
                 if idx in matched_gt_indices:
                     continue
 
-                # 5.2. Create a localized mask for the current ground truth property
+                # 6.2. Create a localized mask for the current ground truth property
                 g_mask = gt_label == gt_prop.label
 
-                # 5.3. Check intersection only in the bounding box area for speed
+                # 6.3. Check intersection only in the bounding box area for speed
                 intersection = np.logical_and(p_mask, g_mask).sum()
                 union = np.logical_or(p_mask, g_mask).sum()
                 iou = intersection / union if union > 0 else 0
 
-                # 5.4. Save best iou
+                # 6.4. Save best iou
                 if iou > best_iou:
                     best_iou = iou
                     best_gt_idx = idx
 
-            # 5.4. Count tp if best_iou >= thresh
+            # 6.4. Count tp if best_iou >= thresh
             if best_iou >= thresh:
                 tp += 1
                 matched_gt_indices.add(best_gt_idx)
 
-        # 5.5. Calculate Precision and Recall and F1 Score for this threshold
+        # 6.5. Calculate Precision and Recall and F1 Score for this threshold
         precision = tp / len(pred_props) if len(pred_props) > 0 else 0.0
         recall = tp / len(gt_props) if len(gt_props) > 0 else 0.0
         # Calculate F1 Score
@@ -160,7 +183,7 @@ def evaluate_segmentation_performance(
         else:
             f1_score = 0.0
 
-        # 5.6. Save evaluation result to final dict
+        # 6.6. Save evaluation result to final dict
         suffix = int(thresh * 100)
         eval_result[f"{INSTANCE_PRECISION}_{suffix}"] = precision
         eval_result[f"{INSTANCE_RECALL}_{suffix}"] = recall
@@ -186,7 +209,7 @@ def evaluate_dataset(all_image_results: list[dict[str, float]]) -> dict:
 
     # 1. Aggregate Semantic Metrics (Simple Mean)
     mean_iou = np.mean([r[SEMANTIC_IOU] for r in all_image_results])
-    mean_dice = np.mean([r[DICE_COEFFICIENT] for r in all_image_results])
+    mean_biou = np.mean([r[BOUNDARY_IOU] for r in all_image_results])
 
     # 2. Aggregate Instance Metrics (Global Summation)
     # We sum TP, FP, and GT counts across all images for a more stable metric
@@ -196,8 +219,8 @@ def evaluate_dataset(all_image_results: list[dict[str, float]]) -> dict:
     # 3. Init final_result dictionary
     final_result = {
         MIOU: mean_iou,
-        MDICE: mean_dice,
-        "Instance_count": total_gt,
+        MBIOU: mean_biou,
+        "images_count": total_gt,
     }
     for thresh in IOU_THRESHOLDS:
         suffix = int(thresh * 100)
@@ -239,16 +262,16 @@ if __name__ == "__main__":
 
     # Init for next steps
     pred_root = args.pred_path
-    gt_root = args.gt_path
+    gt_root = str(args.gt_path)
     gt_list = sorted(os.listdir(gt_root))
     log_path = os.path.join(args.pred_path, "log.txt")
     results = []
     # 2. Evaluate each gt file
     len_gt_list = len(gt_list)
     for i, mask_name in enumerate(gt_list):
-        title = f"[{i+1}/{len_gt_list}] {mask_name}"
+        title = f"[{i + 1}/{len_gt_list}] {mask_name}"
         # 2.1. Read gt and pred path
-        gt_path = os.path.join(gt_root, mask_name)
+        gt_path = str(os.path.join(gt_root, mask_name))
         pred_path = os.path.join(pred_root, mask_name[:-4] + ".png")
         # 2.2. Read gt and pred images
         gt_mask = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)

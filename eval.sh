@@ -1,5 +1,5 @@
 #!/bin/bash
 
 python eval.py \
---pred_path "../results_20260319_1344_lr-0.001_weight-5_3_epoch-8/" \
---gt_path "/Users/hhn21/Documents/h2/primus/wall_seg_crop/data_test/masks/"
+--pred_path "../results_SAM2-UNet_epoch-114_loss-0.483_iou-0.935/" \
+--gt_path "/Users/hhn21/Documents/h2/ANDERSEN/andersen_boundary_10.3/data_test/masks/"

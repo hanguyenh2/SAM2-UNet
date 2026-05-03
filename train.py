@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from dataset import FullDataset, TestDataset
 from eval import (
-    MIOU,
+    MBIOU,
     evaluate_dataset,
     evaluate_segmentation_performance,
     print_eval_report,
@@ -19,7 +19,7 @@ from SAM2UNet import SAM2UNet
 
 
 def structure_loss(pred, mask):
-    weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
+    weit = 1 + 25 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
     wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce="none")
     wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
     pred = torch.sigmoid(pred)
@@ -128,7 +128,7 @@ def main(args):
         print_eval_report(final_result, title=epoch_name, log_path=log_path)
 
         # 7.3. Save checkpoint
-        mean_iou = final_result[MIOU]
+        mean_iou = final_result[MBIOU]
         # 7.3.1. Save best model so far
         if mean_iou > base_mean_iou:
             # Set new base_mean_iou
@@ -136,7 +136,7 @@ def main(args):
             # Set save_model_path
             save_model_path = os.path.join(
                 args.save_path,
-                f"SAM2-UNet_{epoch_name}_iou-{mean_iou:.3f}.pth",
+                f"SAM2-UNet_{epoch_name}_BIoU-{mean_iou:.3f}.pth",
             )
             # Save checkpoint and print status
             torch.save(model.state_dict(), save_model_path)
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--size", default=960, type=int)
     parser.add_argument("--weight_decay", default=5e-4, type=float)
     parser.add_argument("--save_interval", default=20, type=int)
-    parser.add_argument("--base_mean_iou", default=0.83, type=float)
+    parser.add_argument("--base_mean_iou", default=0.65, type=float)
     args = parser.parse_args()
 
     # seed_torch(1024)
