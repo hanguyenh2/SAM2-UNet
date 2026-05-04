@@ -177,25 +177,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_image_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_train/images/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_crop_10.3/data_train/images/",
         help="path to the image that used to train the model",
     )
     parser.add_argument(
         "--train_mask_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_train/masks/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_crop_10.3/data_train/masks/",
         help="path to the mask file for training",
     )
     parser.add_argument(
         "--test_image_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_test/images/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_crop_10.3/data_test/images/",
         help="path to the image that used to evaluate the model",
     )
     parser.add_argument(
         "--test_gt_path",
         type=str,
-        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_10.3/data_test/masks/",
+        default="/data1/workspace/ai_shared_workspace/train_data/andersen_boundary_crop_10.3/data_test/masks/",
         help="path to the mask file for evaluating",
     )
     parser.add_argument("--epoch", type=int, default=500, help="training epochs")
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--size", default=960, type=int)
     parser.add_argument("--weight_decay", default=5e-4, type=float)
     parser.add_argument("--save_interval", default=20, type=int)
-    parser.add_argument("--base_mean_iou", default=0.65, type=float)
+    parser.add_argument("--base_mean_iou", default=0.7, type=float)
     args = parser.parse_args()
 
     # seed_torch(1024)

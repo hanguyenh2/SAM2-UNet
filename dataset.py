@@ -452,8 +452,12 @@ class TestDataset:
 
 
 if __name__ == "__main__":
-    train_image_path = "/Users/hhn21/Documents/h2/primus/andersen_boundary_10.3/data_test/images/"
-    train_mask_path = "/Users/hhn21/Documents/h2/primus/andersen_boundary_10.3/data_test/masks/"
+    train_image_path = (
+        "/Users/hhn21/Documents/h2/primus/andersen_boundary_crop_10.3/data_test/images/"
+    )
+    train_mask_path = (
+        "/Users/hhn21/Documents/h2/primus/andersen_boundary_crop_10.3/data_test/masks/"
+    )
     result_dir = "result"
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
